@@ -10,7 +10,8 @@ dono do produto antes de o `GO_PROMPT.md` ser executado.
 │ index.html   │ ───────────► │ api.py ──► LabelingService ──► SourceRegistry ──► ArcGISSource × 3      │──► ArcGIS REST
 │ app.js       │ ◄─────────── │                │                                                        │
 │ style.css    │              │                ├──► Repository (sqlite3) ──► data/labels.sqlite3        │
-│ (vanilla)    │              │                └──► Translator (plugável) ─────────────────────────────│──► serviço de tradução
+│ (vanilla)    │              │                ├──► Translator (plugável) ─────────────────────────────│──► serviço de tradução
+│              │              │                └──► Suggester (gemini-decision-1) ────────────────────│──► API Gemini
 └──────────────┘              └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -68,11 +69,38 @@ fonte ou descrição. Pendências não vão para o banco (RF-10).
 Proposta: padrão `deep-translator`, configurável por `PLANLABEL_TRANSLATOR`. Traduções
 são cacheadas em memória (LRU) e **não** são gravadas no dataset.
 
+### 2.6.1 Pré-preenchimento com `gemini-decision-1` (Suggester)
+- **Papel:** só sugerir. O modelo nunca grava; a única porta de escrita no banco continua
+  sendo `POST /api/labels`, disparado pelo clique do usuário em Confirmar.
+- **Fluxo assíncrono:** `GET /api/next` devolve a aplicação imediatamente; o frontend chama
+  em seguida `POST /api/suggest {token}`. Assim a latência do modelo não atrasa a exibição;
+  enquanto espera, a tela mostra "sugerindo…" e o usuário já pode escolher manualmente
+  (uma escolha manual feita antes de a sugestão chegar **não** é sobrescrita).
+- **Lado do servidor:** a sugestão fica guardada no pendente (junto do token). Se RF-19 for
+  aprovado, o servidor grava a sugestão que **ele** recebeu do modelo — o cliente não
+  consegue forjá-la.
+- **Chamada:** REST da API Gemini (`generativelanguage.googleapis.com`, `generateContent`)
+  via `httpx`, com saída estruturada em JSON (`responseMimeType: application/json` +
+  `responseSchema`) e `temperature: 0`. Usar `httpx` em vez do SDK mantém o mock simples
+  com `respx`, igual às fontes ArcGIS.
+- **Validação:** a resposta passa pelo mesmo `Label` do domínio; JSON inválido, categoria
+  fora da lista ou `energy=true` sem categoria ⇒ "sem sugestão".
+- **Custo/latência:** uma chamada por aplicação exibida, timeout 10 s, sem retry (o usuário
+  está esperando; melhor rotular manualmente). Cache por hash da descrição.
+- **Configuração:** `PLANLABEL_SUGGESTER=gemini|none`, `PLANLABEL_SUGGESTER_MODEL=gemini-decision-1`,
+  chave em `GEMINI_API_KEY` (só no ambiente). O nome do modelo é confirmado na T00
+  (`GET /v1beta/models`) — modelo do Google acessado pela API Gemini (confirmado pelo dono do produto); a T00 só verifica o ID exato e o acesso com a chave.
+- **[DECIDIR]** Definições das categorias enviadas ao modelo (SPEC §4.3) — são também o
+  guia de rotulagem humana; precisam ser as suas.
+
 ### 2.7 Esquema de dados — campos além dos pedidos **[DECIDIR]**
 O pedido lista: número, fonte, descrição, energia, categoria. Proponho acrescentar:
 - `planning_authority` — **necessário**: `ApplicationNumber` se repete entre conselhos.
 - `source_object_id` — rastreabilidade até o registro original.
 - `labeled_at` (UTC) — auditoria e divisão treino/validação por tempo.
+- `suggested_energy`, `suggested_category`, `suggestion_model` (nullable) — a sugestão do
+  `gemini-decision-1` no momento do rótulo. Permite medir a concordância modelo × humano e
+  é um sinal útil para o fine-tuning (exemplos em que o modelo errou).
 
 ### 2.8 Interpretação do "Cancelar"
 Leitura adotada: Cancelar → diálogo **Encerrar | Próxima**. "Próxima" pula o registro
@@ -93,6 +121,7 @@ planlabel/
     registry.py              # sorteio entre fontes, fallback
   repository.py              # sqlite3: schema, exists(), save(), counts()
   translator.py              # Protocol Translator + implementações
+  suggester.py               # Protocol Suggester, GeminiSuggester, NoneSuggester, prompt
   service.py                 # LabelingService (regras de negócio)
   api.py                     # FastAPI app + rotas
   static/ index.html app.js style.css

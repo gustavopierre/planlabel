@@ -7,7 +7,7 @@
 3. **Refactor**: limpar com a suíte verde.
 4. Commit por ciclo concluído: `test: <ID>` + `feat: <ID>` (ou um só commit com ambos).
 5. Nenhum teste de unidade/integração toca a rede real: HTTP é simulado com `respx`;
-   tradutor é um fake. Testes contra a rede real ficam em `tests/live/`, marcados
+   tradutor e suggester são fakes. Testes contra a rede real ficam em `tests/live/`, marcados
    `@pytest.mark.live` e **fora** da suíte padrão.
 
 ## 2. Ferramentas
@@ -19,8 +19,10 @@ Fixtures-chave (`tests/conftest.py`):
 - `tmp_db` — `Repository` num arquivo SQLite em `tmp_path`.
 - `fake_sources` — fontes em memória com registros controlados (`FakeSource`).
 - `rng` — `random.Random(42)`.
-- `client` — `TestClient` com app montado via `create_app(settings, sources, translator, rng)`.
+- `fake_suggester` — `FakeSuggester` com respostas programáveis (sugestão, `None`, lento).
+- `client` — `TestClient` com app montado via `create_app(settings, sources, translator, suggester, rng)`.
 - `arcgis_fixtures/` — JSONs reais gravados (`abp_ids.json`, `abp_one.json`, `arcgis_error.json`, `epl_*`).
+- `gemini_fixtures/` — respostas `generateContent` (válida, JSON inválido, categoria fora da lista, erro 429/500).
 
 ## 3. Catálogo de testes
 
@@ -45,6 +47,8 @@ Fixtures-chave (`tests/conftest.py`):
 | R-06 | `counts()` em banco vazio → zeros e as 5 categorias presentes |
 | R-07 | `counts()` com dados mistos → total, energy, not_energy e by_category corretos |
 | R-08 | `labeled_at` gravado em ISO-8601 UTC |
+| R-09 | `save` com `Suggestion` grava `suggested_energy`, `suggested_category`, `suggestion_model`; sem sugestão grava NULL |
+| R-10 | INSERT direto com `suggested_energy=1, suggested_category NULL` → `IntegrityError` |
 
 ### 3.3 ArcGISSource (`tests/unit/test_arcgis_source.py`, com `respx`)
 | ID | Caso |
@@ -76,6 +80,27 @@ Fixtures-chave (`tests/conftest.py`):
 | S-12 | sorteio `by_size` e `uniform` respeitam pesos (distribuição em 10 000 sorteios com `rng` fixo, tolerância 3 %) |
 | S-13 | limite de 100 pendentes: o mais antigo é descartado |
 
+### 3.4.1 Suggester (`tests/unit/test_suggester.py`, com `respx`)
+| ID | Caso |
+|---|---|
+| G-01 | requisição vai para `.../models/gemini-decision-1:generateContent` com header `x-goog-api-key`, `temperature: 0`, `responseMimeType` JSON e `responseSchema` |
+| G-02 | resposta válida `{"energy":true,"category":"wind"}` → `Suggestion(label=wind, model="gemini-decision-1")` |
+| G-03 | resposta `{"energy":false,"category":null}` → sugestão não energia |
+| G-04 | JSON inválido / categoria fora da lista / `energy=true` sem categoria → `None` (não levanta) |
+| G-05 | HTTP 429/500 e timeout → `None` (não levanta), sem retry (1 chamada só) |
+| G-06 | cache: mesma descrição → 1 chamada HTTP |
+| G-07 | snapshot do prompt de sistema (mudança no prompt exige atualizar o snapshot conscientemente) |
+| G-08 | sem `GEMINI_API_KEY` → fábrica devolve `NoneSuggester`; `PLANLABEL_SUGGESTER_MODEL` troca o modelo da URL |
+
+### 3.4.2 Serviço + sugestão (`tests/unit/test_service.py`)
+| ID | Caso |
+|---|---|
+| S-14 | `suggest(token)` **não** escreve no banco (spy) — a sugestão sozinha nunca salva |
+| S-15 | `suggest` chamado 2× no mesmo token → `Suggester` chamado 1× |
+| S-16 | `confirm` com rótulo **diferente** da sugestão grava o rótulo do usuário em `energy/category` e a sugestão em `suggested_*` |
+| S-17 | `confirm` sem ter chamado `suggest` grava `suggested_*` NULL |
+| S-18 | `suggest` com token desconhecido → `UnknownToken` |
+
 ### 3.5 Tradutor (`tests/unit/test_translator.py`)
 | ID | Caso |
 |---|---|
@@ -101,6 +126,11 @@ Fixtures-chave (`tests/conftest.py`):
 | I-12 | `POST /api/translate` → 200; tradutor falhando → 502 |
 | I-13 | registro gravado contém `source`, `application_number`, `description`, `energy`, `category` iguais aos exibidos |
 | I-14 | após gravar uma aplicação, 50 chamadas a `/api/next` nunca a retornam |
+| I-15 | `POST /api/suggest` → 200 com `suggestion` (energy, category, model); **banco inalterado** |
+| I-16 | suggester falhando → 200 `{"suggestion": null}`; banco inalterado |
+| I-17 | `suggest` + nenhum `labels` + `skip` → banco inalterado (a sugestão nunca é salva sem confirmação) |
+| I-18 | `POST /api/suggest` token desconhecido → 404 |
+| I-19 | o cliente não consegue forjar a sugestão: campos `suggested_*` enviados em `/api/labels` são ignorados/rejeitados (422) |
 
 ### 3.7 E2E (`tests/e2e/test_ui.py`, Playwright, servidor com fontes fake)
 | ID | Caso |
@@ -115,12 +145,18 @@ Fixtures-chave (`tests/conftest.py`):
 | E-08 | atalhos de teclado `N` + `Enter` gravam não energia |
 | E-09 | recarregar a página → nova aplicação, contador persiste |
 | E-10 | erro 503 → mensagem + "Tentar de novo" funciona |
+| E-11 | sugestão "energia/solar" chega → opções pré-marcadas, selo "sugestão do gemini-decision-1"; contador **não** muda até Confirmar |
+| E-12 | com sugestão pré-marcada, Cancelar → Encerrar → banco inalterado |
+| E-13 | usuário altera a sugestão (solar → bess) e confirma → grava bess; selo "alterado por você" |
+| E-14 | usuário escolhe antes de a sugestão chegar (suggester lento) → escolha do usuário não é sobrescrita |
+| E-15 | sugestão `null` → opções vazias, selo "sem sugestão", Confirmar desabilitado |
 
 ### 3.8 Live (`tests/live/`, opcional, `pytest -m live`)
 | ID | Caso |
 |---|---|
 | L-01 | cada uma das 3 fontes responde `?f=json` e contém os campos do `FIELD_MAP` |
 | L-02 | `list_ids()` e `fetch()` reais devolvem uma `Application` válida por fonte |
+| L-03 | com `GEMINI_API_KEY`, `gemini-decision-1` devolve sugestão válida para 3 descrições conhecidas (wind farm, house extension, BESS) |
 
 ## 4. Matriz de rastreabilidade
 
@@ -138,6 +174,11 @@ Fixtures-chave (`tests/conftest.py`):
 | RF-12 | E-09 |
 | RF-13 | R-06, R-07, I-02, I-04, I-05, E-03 |
 | RF-14 | A-07..09, S-05, S-06, I-11, E-10 |
+| RF-15 | G-01..03, I-15, E-11 |
+| RF-16 | S-14, I-15, I-17, E-11, E-12 |
+| RF-17 | S-16, E-13, E-14 |
+| RF-18 | G-04, G-05, I-16, E-15 |
+| RF-19 | R-09, R-10, S-16, S-17, I-19 |
 | RNF-03 | E-08 |
 | RNF-04 | cobertura no CI (`--cov-fail-under=90`) |
 

@@ -2,7 +2,7 @@
 
 Web app minimalista para rotular, uma por vez, planning applications irlandesas
 (An Bord Pleanála e ePlanning/LGMA) como **energia / não energia** e por **categoria**
-(hybrid, wind, solar, bess, leu). O resultado (SQLite) alimenta treino e fine-tuning de modelos de IA.
+(hybrid, wind, solar, bess, leu), com as opções pré-preenchidas pelo modelo Google `gemini-decision-1` e sempre confirmadas pelo usuário. O resultado (SQLite) alimenta treino e fine-tuning de modelos de IA.
 
 **Status:** documentação pronta; implementação pendente (ver [`GO_PROMPT.md`](GO_PROMPT.md)).
 

@@ -17,7 +17,7 @@ Referências: [PRD](PRD.md) · [Arquitetura](ARCHITECTURE.md) · [TDD](TDD.md) �
 | `epl_1` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` |
 | `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber`* | `DevelopmentDescription`* | `PlanningAuthority`* |
 
-\* Confirmar na tarefa **T00** com `GET <url>?f=json`. Esquema do `abp` verificado em
+\* Confirmar na tarefa **T00** (que também confirma que o modelo `gemini-decision-1` existe na API Gemini) com `GET <url>?f=json`. Esquema do `abp` verificado em
 2026-11-18 (27 310 registros, `maxRecordCount` 2000, `OBJECTID` como OID).
 O mapeamento fica num dicionário `FIELD_MAP` em `planlabel/sources/arcgis.py`; nenhum
 nome de campo aparece em outro lugar do código.
@@ -49,7 +49,14 @@ CREATE TABLE IF NOT EXISTS labeled_application (
     energy              INTEGER NOT NULL CHECK (energy IN (0,1)),
     category            TEXT    CHECK (category IN ('hybrid','wind','solar','bess','leu')),
     labeled_at          TEXT    NOT NULL,                 -- ISO-8601 UTC
+    -- sugestão do modelo no momento do rótulo (nullable: modelo falhou ou desligado) [RF-19]
+    suggested_energy    INTEGER CHECK (suggested_energy IN (0,1)),
+    suggested_category  TEXT    CHECK (suggested_category IN ('hybrid','wind','solar','bess','leu')),
+    suggestion_model    TEXT,
     CHECK ((energy = 1 AND category IS NOT NULL) OR (energy = 0 AND category IS NULL)),
+    CHECK (suggested_energy IS NULL OR
+           (suggested_energy = 1 AND suggested_category IS NOT NULL) OR
+           (suggested_energy = 0 AND suggested_category IS NULL)),
     UNIQUE (source, planning_authority, application_number)
 );
 ```
@@ -63,7 +70,8 @@ CREATE TABLE IF NOT EXISTS labeled_application (
 ```python
 class Repository:
     def exists(self, source: str, authority: str, number: str) -> bool: ...
-    def save(self, app: Application, label: Label) -> int: ...   # levanta DuplicateError
+    def save(self, app: Application, label: Label,
+             suggestion: Suggestion | None = None) -> int: ...   # levanta DuplicateError
     def counts(self) -> Counts: ...  # total, energy, not_energy, by_category{5 chaves sempre}
 ```
 
@@ -83,6 +91,10 @@ class Label(BaseModel):
     energy: bool
     category: Category | None
     # model_validator: energy=True ⇒ category obrigatória; energy=False ⇒ category deve ser None
+
+class Suggestion(BaseModel):
+    label: Label              # mesma validação do rótulo humano
+    model: str                # ex.: "gemini-decision-1"
 ```
 
 ### 4.1 LabelingService
@@ -94,8 +106,48 @@ class Label(BaseModel):
   (máx. 100 pendentes, os mais antigos são descartados).
 - `confirm(token, label) -> Counts` — token desconhecido → `UnknownToken`; revalida
   `exists()` (corrida) → `DuplicateError`; grava; remove o pendente.
+- `suggest(token) -> Suggestion | None` — token desconhecido → `UnknownToken`; chama o
+  `Suggester` uma vez por token (chamadas repetidas devolvem o valor guardado), guarda o
+  resultado no pendente. **Não** escreve no banco.
+- `confirm` grava o rótulo do usuário + a sugestão guardada no pendente (se houver).
+  Rótulo e sugestão podem divergir; vale sempre o rótulo do usuário.
 - `skip(token)` — remove o pendente sem gravar; o ID fica no conjunto "visto nesta execução".
 - O sorteio usa `random.Random` injetável (testes determinísticos).
+
+### 4.2 Suggester (`gemini-decision-1`)
+
+```python
+class Suggester(Protocol):
+    def suggest(self, app: Application) -> Suggestion | None: ...   # nunca levanta: falha ⇒ None
+```
+
+- `GeminiSuggester`: `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`,
+  chave no header `x-goog-api-key` (de `GEMINI_API_KEY`), timeout 10 s, sem retry.
+- `generationConfig`: `temperature: 0`, `responseMimeType: "application/json"`,
+  `responseSchema`:
+  `{"type":"OBJECT","properties":{"energy":{"type":"BOOLEAN"},"category":{"type":"STRING","enum":["hybrid","wind","solar","bess","leu"],"nullable":true}},"required":["energy","category"]}`
+- Resposta validada com `Label`; qualquer erro (HTTP, JSON, validação) ⇒ `None` + log `WARNING`.
+- Cache LRU (256) por `sha256(description)`.
+- `NoneSuggester` devolve sempre `None` (padrão quando não há `GEMINI_API_KEY`).
+
+**Prompt (system instruction) — definições [DECIDIR]:**
+
+```
+You classify Irish planning application descriptions for an energy dataset.
+Return JSON {energy, category}. energy=false ⇒ category=null.
+energy=true when the main purpose of the development is one of:
+- wind:   wind turbines / wind farm (onshore or offshore), incl. repowering and extensions.
+- solar:  solar PV farm or ground-mounted solar array (not rooftop panels on a house or building).
+- bess:   battery energy storage system as the main development.
+- hybrid: two or more of wind / solar / bess combined in the same application.
+- leu:    large energy user — data centre, large industrial facility whose application is
+          driven by high electricity demand.
+Everything else is energy=false (houses, extensions, rooftop solar on a dwelling,
+roads, retail, grid-only works, etc.).
+```
+
+O texto da descrição vai na mensagem do usuário, sem outros campos. O prompt fica em
+`planlabel/suggester.py` como constante e é coberto por teste de snapshot (G-07).
 
 ## 5. API HTTP
 
@@ -108,6 +160,7 @@ Todas as respostas são JSON, exceto `/` (HTML).
 | `GET /api/next` | — | `200 {token, application, stats}` | `503 {"detail": "..."}` se nenhuma fonte responder |
 | `POST /api/labels` | `{token, energy, category}` | `201 {stats}` | `422` rótulo incompleto/inválido · `404` token desconhecido · `409` duplicado |
 | `POST /api/skip` | `{token}` | `204` | `404` token desconhecido |
+| `POST /api/suggest` | `{token}` | `200 {"suggestion": {"energy": bool, "category": str\|null, "model": str} \| null}` | `404` token desconhecido |
 | `POST /api/translate` | `{text}` (≤ 4000 chars) | `200 {translation}` | `502` tradutor falhou |
 
 `Counts` = `{"total": int, "energy": int, "not_energy": int, "by_category": {"hybrid":int,"wind":int,"solar":int,"bess":int,"leu":int}}`
@@ -124,14 +177,21 @@ Plan Labeler                                  1.284 rotulados · 312 energia
 ABP · Laois County Council · 318799
 112 structures associated with uprate of existing line. A Natura …
                                                          [Traduzir]
-( ) Energia   ( ) Não energia
+( ) Energia   ( ) Não energia               sugestão do gemini-decision-1
     ( ) hybrid ( ) wind ( ) solar ( ) bess ( ) leu      ← só se Energia
                                          [Cancelar]  [Confirmar]
 ```
 
 ### 6.2 Estados e regras
 - **Carregando** → texto "Buscando…"; botões desabilitados.
-- **Confirmar** habilitado somente com rótulo completo. Trocar para "Não energia" limpa a categoria.
+- **Sugestão:** após exibir, o frontend chama `/api/suggest`. Enquanto espera: "sugerindo…"
+  (as opções continuam clicáveis). Ao chegar, marca as opções sugeridas **somente se o
+  usuário ainda não escolheu nada** e mostra o selo "sugestão do gemini-decision-1".
+  Se o usuário alterar qualquer opção, o selo muda para "alterado por você". Sem sugestão
+  (falha/`null`): selo "sem sugestão" e opções vazias. Resposta que chega depois de o
+  usuário passar para outra aplicação é ignorada (comparar token).
+- **Confirmar** habilitado somente com rótulo completo (vindo da sugestão ou do usuário);
+  nada é gravado sem o clique em Confirmar / `Enter`. Trocar para "Não energia" limpa a categoria.
 - **Traduzir** alterna entre original e tradução ("Ver original"); erro de tradução aparece em linha e não bloqueia.
 - **Cancelar** → diálogo nativo `<dialog>`: "Encerrar" / "Próxima".
 - **Encerrado** → "Sessão encerrada. N registros rotulados." + botão "Recomeçar" (= recarregar).
@@ -152,7 +212,11 @@ ABP · Laois County Council · 318799
 | `PLANLABEL_IDS_TTL_S` | `86400` |
 | `PLANLABEL_HOST` / `PLANLABEL_PORT` | `127.0.0.1` / `8000` |
 
-Chaves de API (DeepL/Anthropic) apenas via ambiente; nunca no repositório.
+| `PLANLABEL_SUGGESTER` | `gemini` se `GEMINI_API_KEY` existir, senão `none` |
+| `PLANLABEL_SUGGESTER_MODEL` | `gemini-decision-1` |
+| `PLANLABEL_SUGGESTER_TIMEOUT_S` | `10` |
+
+Chaves de API (`GEMINI_API_KEY`, DeepL, Anthropic) apenas via ambiente; nunca no repositório.
 
 ## 8. Rastreabilidade requisito → teste
 

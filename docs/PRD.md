@@ -43,13 +43,20 @@ URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
    que **ainda não existe** no banco, e a exibe.
 2. A tela mostra: **número da aplicação**, **fonte**, **descrição** (em inglês) e o
    **contador** de registros já rotulados.
-3. O usuário pode clicar em **Traduzir** para ver a descrição em português (a tradução é
+3. Logo após a exibição, o modelo **`gemini-decision-1`** analisa a descrição e
+   **pré-preenche** as opções (Energia/Não energia e, se energia, a categoria). A sugestão
+   aparece marcada como "sugestão do gemini-decision-1". A sugestão, sozinha, **não grava
+   nada**: quem confirma é sempre o usuário. Se o modelo falhar ou demorar, as opções ficam
+   vazias e o usuário rotula manualmente.
+4. O usuário pode clicar em **Traduzir** para ver a descrição em português (a tradução é
    só para leitura e não é gravada).
-4. O usuário escolhe **Energia** ou **Não energia**.
+5. O usuário mantém ou altera a sugestão: escolhe **Energia** ou **Não energia**.
    - Se **Energia**, precisa escolher **uma** categoria: `hybrid`, `wind`, `solar`, `bess`, `leu`.
-5. **Confirmar** só fica habilitado quando as escolhas obrigatórias estão feitas.
+6. **Confirmar** só fica habilitado quando as escolhas obrigatórias estão feitas.
    Ao confirmar, o registro é salvo, o contador é atualizado e a próxima aplicação é carregada.
-6. **Cancelar** abre a pergunta: **Encerrar** ou **Próxima**?
+   O clique em Confirmar (ou `Enter`) é o ato do usuário que valida o rótulo — inclusive
+   quando ele aceita a sugestão sem alterá-la.
+7. **Cancelar** abre a pergunta: **Encerrar** ou **Próxima**?
    - **Próxima** → descarta a aplicação atual (nada é gravado) e carrega outra.
    - **Encerrar** → encerra a sessão de rotulagem (tela final com o contador; nada pendente é gravado).
 
@@ -71,6 +78,11 @@ URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
 | RF-12 | Ao abrir (ou recarregar) o app, uma nova aplicação válida é buscada. |
 | RF-13 | Mostrar sempre o total de registros rotulados no banco, atualizado após cada confirmação (com divisão energia / não energia e por categoria). |
 | RF-14 | Se uma fonte estiver indisponível, usar as outras; se todas falharem, mostrar erro claro com botão **Tentar de novo**. |
+| RF-15 | Para cada aplicação exibida, pedir ao modelo `gemini-decision-1` uma sugestão de rótulo e pré-preencher as opções com ela. |
+| RF-16 | A sugestão do modelo **nunca** grava nada no banco; só o clique do usuário em Confirmar grava. |
+| RF-17 | O usuário pode alterar livremente as opções pré-preenchidas antes de confirmar. |
+| RF-18 | Falha, timeout ou resposta inválida do modelo não bloqueia a rotulagem: opções ficam vazias e um aviso discreto aparece. |
+| RF-19 | Gravar junto com o rótulo humano a sugestão do modelo (energy/category sugeridos e nome do modelo), para medir concordância modelo × humano. **[DECIDIR]** |
 
 ## 7. Requisitos não funcionais
 
@@ -86,7 +98,7 @@ URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
 ## 8. Fora de escopo (MVP)
 
 Autenticação, multiusuário, edição/remoção de rótulos já gravados pela interface,
-geometrias/mapa, Irlanda do Norte, rotulagem automática por IA, exportação para
+geometrias/mapa, Irlanda do Norte, gravação automática de rótulos por IA (a IA só sugere), exportação para
 formatos de treino (JSONL etc.) — este último é o candidato natural para a v0.2.
 
 ## 9. Riscos
@@ -95,6 +107,8 @@ formatos de treino (JSONL etc.) — este último é o candidato natural para a v
 |---|---|
 | Esquema das camadas `epl_0`/`epl_1` diferente do esperado | Tarefa T00 verifica os esquemas reais antes de codar o adaptador; mapeamento de campos fica em configuração. |
 | `ApplicationNumber` não é único no país (o mesmo número existe em Laois e Offaly) | Chave de unicidade inclui a autoridade de planejamento (SPEC §3). |
+| ID exato do modelo `gemini-decision-1` (modelo Google via API) ou acesso com a chave diferente do esperado | Tarefa T00 lista os modelos disponíveis para a chave; nome configurável por `PLANLABEL_SUGGESTER_MODEL`. |
+| Viés de ancoragem: o usuário tende a aceitar a sugestão | Sugestão visivelmente marcada; gravar sugestão e rótulo separadamente (RF-19) permite medir e auditar a taxa de concordância. |
 | Tradução depende de serviço externo | Interface `Translator` plugável; falha de tradução não bloqueia a rotulagem. |
 | A mesma obra pode aparecer no ABP (recurso) e no ePlanning (pedido) | Aceito no MVP: são registros de fontes diferentes; documentado para o pipeline de treino. |
 
