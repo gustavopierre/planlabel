@@ -93,11 +93,12 @@ URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
 | RNF-03 | Atalhos de teclado para rotular sem mouse (ver SPEC §6.3). |
 | RNF-04 | Desenvolvimento em **TDD**; cobertura ≥ 90 % no backend. |
 | RNF-05 | Sem segredos no repositório; configuração por variáveis de ambiente. |
+| RNF-07 | No ambiente de teste na internet (`https://planlabel-test.bundoran.tech`), acesso só com **login Google** de e-mails autorizados (oauth2-proxy na frente do app). |
 | RNF-06 | Respeitar as fontes públicas: timeout, retry com backoff, no máximo poucas requisições por registro exibido. |
 
 ## 8. Fora de escopo (MVP)
 
-Autenticação, multiusuário, edição/remoção de rótulos já gravados pela interface,
+Autenticação dentro do app (o login Google fica no oauth2-proxy, fora do código), multiusuário, edição/remoção de rótulos já gravados pela interface,
 geometrias/mapa, Irlanda do Norte, gravação automática de rótulos por IA (a IA só sugere), exportação para
 formatos de treino (JSONL etc.) — este último é o candidato natural para a v0.2.
 

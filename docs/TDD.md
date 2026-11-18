@@ -157,9 +157,12 @@ Fixtures-chave (`tests/conftest.py`):
 |---|---|
 | L-01 | cada uma das 3 fontes responde `?f=json` e contém os campos do `FIELD_MAP` |
 | L-02 | `list_ids()` e `fetch()` reais devolvem uma `Application` válida por fonte |
-| D-01 | (pós-deploy) `curl -I https://planlabel-test.bundoran.tech` sem credencial → 401 |
-| D-02 | (pós-deploy) com credencial: `/healthz` 200 e `/api/next` 200 com aplicação real |
-| D-03 | (pós-deploy) `docker compose restart` não perde registros (volume persistente) |
+| D-01 | (pós-deploy) `curl -sI https://planlabel-test.bundoran.tech/` sem cookie → 302 para `/oauth2/start` (e daí para `accounts.google.com`) |
+| D-02 | (pós-deploy) `curl -s https://planlabel-test.bundoran.tech/api/next` sem cookie → **não** 200 (302/401); nenhum dado exposto |
+| D-03 | (pós-deploy, manual) login com e-mail autorizado → app abre, `/api/next` traz aplicação real, rotular grava |
+| D-04 | (pós-deploy, manual) login com conta Google **fora** da lista → 403 do oauth2-proxy |
+| D-05 | (pós-deploy) `curl --max-time 5 http://31.97.113.166:8000/` e `:4180` falham (portas não publicadas) |
+| D-06 | (pós-deploy) `docker compose restart` não perde registros (volume persistente) |
 | L-03 | com `GEMINI_API_KEY`, `gemini-decision-1` devolve sugestão válida para 3 descrições conhecidas (wind farm, house extension, BESS) |
 
 ## 4. Matriz de rastreabilidade

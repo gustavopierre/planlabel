@@ -144,23 +144,71 @@ Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria
 - **Branch:** `develop` → VPS 3 (teste); `main` → produção futura (`planlabel.bundoran.tech`, sem data).
 - **Sem Caddy próprio:** o app entra na rede Docker externa `edge` com o apelido fixo
   `planlabel`; o Caddy compartilhado (`/opt/edge`, versionado em `vps-infra/vps-3/edge`)
-  ganha um bloco:
+  ganha um bloco.
+- **Login com conta Google (oauth2-proxy):** o app não tem login próprio e grava o
+  dataset, então não pode ficar aberto. O acesso passa por um container
+  [`oauth2-proxy`](https://oauth2-proxy.github.io/oauth2-proxy/) (apelido `planlabel-oauth2`
+  na rede `edge`) com o provedor Google. O Caddy consulta o oauth2-proxy em cada requisição
+  (`forward_auth`); sem sessão válida, redireciona para o login do Google; só passam e-mails
+  da lista de permitidos. **Nenhum código de autenticação no app Python.**
 
   ```caddyfile
   planlabel-test.bundoran.tech {
-      basic_auth {
-          import /etc/caddy/auth/planlabel.caddy   # hash bcrypt, fora do git
+      handle /oauth2/* {
+          reverse_proxy planlabel-oauth2:4180 {
+              header_up X-Real-IP {remote_host}
+              header_up X-Forwarded-Uri {uri}
+          }
       }
-      reverse_proxy planlabel:8000
+      handle {
+          forward_auth planlabel-oauth2:4180 {
+              uri /oauth2/auth
+              copy_headers X-Auth-Request-User X-Auth-Request-Email
+              @bad status 4xx
+              handle_response @bad {
+                  redir * /oauth2/start?rd={scheme}://{host}{uri}
+              }
+          }
+          reverse_proxy planlabel:8000
+      }
   }
   ```
-- **Basic auth obrigatório:** o app não tem login e grava o dataset; não pode ficar aberto na internet.
+
+  Configuração do oauth2-proxy (variáveis no `.env` da VPS; imagem
+  `quay.io/oauth2-proxy/oauth2-proxy` com versão fixada na T12):
+
+  | Variável | Valor |
+  |---|---|
+  | `OAUTH2_PROXY_PROVIDER` | `google` |
+  | `OAUTH2_PROXY_CLIENT_ID` / `OAUTH2_PROXY_CLIENT_SECRET` | do Google Cloud Console (segredo) |
+  | `OAUTH2_PROXY_COOKIE_SECRET` | 32 bytes aleatórios (`openssl rand -base64 32 \| tr -- '+/' '-_'`) (segredo) |
+  | `OAUTH2_PROXY_REDIRECT_URL` | `https://planlabel-test.bundoran.tech/oauth2/callback` |
+  | `OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE` | `/etc/oauth2-proxy/emails.txt` (um e-mail por linha; fora do git) |
+  | `OAUTH2_PROXY_HTTP_ADDRESS` | `0.0.0.0:4180` |
+  | `OAUTH2_PROXY_REVERSE_PROXY` / `OAUTH2_PROXY_SET_XAUTHREQUEST` | `true` / `true` |
+  | `OAUTH2_PROXY_COOKIE_SECURE` | `true` |
+  | `OAUTH2_PROXY_UPSTREAMS` | `static://202` (só autentica; quem serve o app é o Caddy) |
+
+  **Google Cloud Console (feito pelo dono):** projeto `planlabel`; tela de consentimento
+  OAuth "Externo" em modo "Teste", com a conta do dono como usuário de teste; credencial
+  "ID do cliente OAuth" tipo "Aplicativo da Web" com URI de redirecionamento
+  `https://planlabel-test.bundoran.tech/oauth2/callback`.
+
+  **Regras de segurança:** os containers `planlabel` e `planlabel-oauth2` **não publicam
+  portas** no host (só a rede `edge`), para que ninguém contorne o login acessando
+  `IP:8000`. O app ignora os headers `X-Auth-Request-*` no MVP. **[DECIDIR]** Gravar
+  `labeled_by` a partir de `X-Auth-Request-Email` se houver mais de um rotulador.
+
+  O mesmo padrão pode proteger depois os outros apps de teste da VPS 3 (`lo-eng-test`,
+  `roxjournal-test`); isso é decisão do projeto `vps_infra`.
 - **Arquivos no repositório do app:** `Dockerfile` (python:3.12-slim, usuário não root,
   `uvicorn planlabel.api:app --host 0.0.0.0 --port 8000`), `docker-compose.edge.yml`
-  (serviço `planlabel`, rede `edge` externa, volume `planlabel_data:/app/data`,
-  `env_file: .env`, `restart: unless-stopped`, healthcheck em `/healthz`), `.env.example`.
-- **Segredos:** `GEMINI_API_KEY` (e chaves de tradução, se houver) só em `~/planlabel/.env`
-  na VPS, modo 600, fora do git.
+  (serviços `planlabel` e `planlabel-oauth2`, rede `edge` externa, sem `ports:`,
+  volume `planlabel_data:/app/data`, `env_file: .env`, `restart: unless-stopped`,
+  healthcheck em `/healthz`), `.env.example` (só nomes das variáveis, sem valores).
+- **Segredos:** `GEMINI_API_KEY`, `OAUTH2_PROXY_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`
+  (e chaves de tradução, se houver) só em `~/planlabel/.env` na VPS, modo 600, fora do git;
+  `emails.txt` também fora do git.
 - **Dados:** SQLite no volume `planlabel_data`. Backup diário fora do servidor
   (`sqlite3 labels.sqlite3 ".backup ..."` → cópia para o Drive/PC) — **[DECIDIR]** destino e rotina.
 - **Divisão de trabalho:** o deploy do app é deste projeto; a alteração no `Caddyfile` e nas
