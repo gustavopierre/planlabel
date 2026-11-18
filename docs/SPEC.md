@@ -156,6 +156,7 @@ Todas as respostas são JSON, exceto `/` (HTML).
 | Método e rota | Corpo | Sucesso | Erros |
 |---|---|---|---|
 | `GET /` | — | `index.html` | — |
+| `GET /healthz` | — | `200 {"status":"ok"}` (não chama fontes nem modelo) | — |
 | `GET /api/stats` | — | `200 Counts` | — |
 | `GET /api/next` | — | `200 {token, application, stats}` | `503 {"detail": "..."}` se nenhuma fonte responder |
 | `POST /api/labels` | `{token, energy, category}` | `201 {stats}` | `422` rótulo incompleto/inválido · `404` token desconhecido · `409` duplicado |
@@ -210,7 +211,7 @@ ABP · Laois County Council · 318799
 | `PLANLABEL_TRANSLATOR` | `google` (`google` \| `deepl` \| `claude` \| `none`) |
 | `PLANLABEL_SOURCE_WEIGHTING` | `by_size` (`by_size` \| `uniform`) |
 | `PLANLABEL_IDS_TTL_S` | `86400` |
-| `PLANLABEL_HOST` / `PLANLABEL_PORT` | `127.0.0.1` / `8000` |
+| `PLANLABEL_HOST` / `PLANLABEL_PORT` | `127.0.0.1` / `8000` (no container: `0.0.0.0`) |
 
 | `PLANLABEL_SUGGESTER` | `gemini` se `GEMINI_API_KEY` existir, senão `none` |
 | `PLANLABEL_SUGGESTER_MODEL` | `gemini-decision-1` |

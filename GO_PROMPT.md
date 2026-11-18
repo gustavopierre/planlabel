@@ -19,7 +19,7 @@ SPEC > TDD > ARCHITECTURE > PRD. Decisões marcadas **[DECIDIR]** em ARCHITECTUR
 opção proposta como padrão, a menos que o arquivo registre outra decisão.
 
 **Como trabalhar.**
-1. Execute as tarefas de `docs/TASKS.md` em ordem (T00 → T11, com T06b após T06).
+1. Execute as tarefas de `docs/TASKS.md` em ordem (T00 → T10, T12, T11; T06b após T06).
 2. Para cada tarefa: escreva os testes listados **primeiro**, rode e confirme que falham;
    implemente o mínimo; rode a suíte inteira; refatore; `ruff check . && ruff format .`;
    commit (`feat(T0x): …`).
@@ -52,6 +52,7 @@ opção proposta como padrão, a menos que o arquivo registre outra decisão.
 - [ ] **C12** — Memória da conversa atualizada no Google Drive (sessão + índices).
 - [ ] **C13** — Sugestão não salva sozinha: S-14, I-15, I-17, E-11 e E-12 verdes; a única rota que escreve no banco é `POST /api/labels` (verificado por teste ou por grep no código).
 - [ ] **C14** — Falha do `gemini-decision-1` não bloqueia: G-04, G-05, I-16, E-15 verdes; app funciona com `PLANLABEL_SUGGESTER=none`.
+- [ ] **C15** — App de teste no ar em `https://planlabel-test.bundoran.tech` (VPS 3, Caddy compartilhado, basic auth): D-01..D-03 verificados; `GEMINI_API_KEY` só no `.env` do servidor; mudança no Caddyfile registrada no projeto `vps_infra`. Se faltar acesso SSH à VPS a partir da sessão, deixar `Dockerfile`/compose prontos e o passo a passo em `docs/DEPLOY.md`, e marcar o item como bloqueado com o motivo.
 
-Ao terminar, responda com a lista C1–C14 marcada e a evidência de cada item
+Ao terminar, responda com a lista C1–C15 marcada e a evidência de cada item
 (saída resumida dos comandos, hash do commit).

@@ -134,3 +134,36 @@ data/                        # labels.sqlite3 (gitignored)
 
 Runtime: `fastapi`, `uvicorn`, `httpx`, `pydantic-settings`, `deep-translator`.
 Dev: `pytest`, `pytest-cov`, `respx`, `playwright`, `ruff`.
+
+## 5. Deploy de teste — VPS 3 (`https://planlabel-test.bundoran.tech`)
+
+Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria/vps_infra/`):
+
+- **Servidor:** VPS 3 de testes (31.97.113.166, Hostinger), usuário `deploy`, Docker.
+- **DNS:** registro A `planlabel-test.bundoran.tech` → 31.97.113.166 (criado pelo dono em 2026-11-18).
+- **Branch:** `develop` → VPS 3 (teste); `main` → produção futura (`planlabel.bundoran.tech`, sem data).
+- **Sem Caddy próprio:** o app entra na rede Docker externa `edge` com o apelido fixo
+  `planlabel`; o Caddy compartilhado (`/opt/edge`, versionado em `vps-infra/vps-3/edge`)
+  ganha um bloco:
+
+  ```caddyfile
+  planlabel-test.bundoran.tech {
+      basic_auth {
+          import /etc/caddy/auth/planlabel.caddy   # hash bcrypt, fora do git
+      }
+      reverse_proxy planlabel:8000
+  }
+  ```
+- **Basic auth obrigatório:** o app não tem login e grava o dataset; não pode ficar aberto na internet.
+- **Arquivos no repositório do app:** `Dockerfile` (python:3.12-slim, usuário não root,
+  `uvicorn planlabel.api:app --host 0.0.0.0 --port 8000`), `docker-compose.edge.yml`
+  (serviço `planlabel`, rede `edge` externa, volume `planlabel_data:/app/data`,
+  `env_file: .env`, `restart: unless-stopped`, healthcheck em `/healthz`), `.env.example`.
+- **Segredos:** `GEMINI_API_KEY` (e chaves de tradução, se houver) só em `~/planlabel/.env`
+  na VPS, modo 600, fora do git.
+- **Dados:** SQLite no volume `planlabel_data`. Backup diário fora do servidor
+  (`sqlite3 labels.sqlite3 ".backup ..."` → cópia para o Drive/PC) — **[DECIDIR]** destino e rotina.
+- **Divisão de trabalho:** o deploy do app é deste projeto; a alteração no `Caddyfile` e nas
+  fichas da VPS 3 é registrada também no projeto `vps_infra` (e copiada para o Hermes).
+- **Vantagem:** a VPS não tem o bloqueio de rede do container de desenvolvimento; a T00
+  (esquemas ePlanning e modelo `gemini-decision-1`) pode ser conferida a partir dela.

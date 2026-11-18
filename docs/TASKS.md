@@ -17,4 +17,5 @@ tarefa = testes listados verdes + `ruff` limpo + commit feito.
 | T08 | Frontend `static/`: layout, estados, diálogo, teclado, pré-preenchimento | E-01..E-15 | T07 |
 | T09 | Testes live opcionais | L-01..L-03 (quando a rede/chave permitir) | T04, T06b |
 | T10 | `README.md` (instalar, rodar, testar, exportar), conferência do critério de conclusão | checklist do `GO_PROMPT.md` | T01..T08 |
+| T12 | Deploy de teste na VPS 3: `Dockerfile`, `docker-compose.edge.yml`, `.env.example`, `/healthz`; branch `develop`; bloco no Caddyfile compartilhado com basic auth; registrar no `vps_infra` | I-20, D-01..D-03 | T07, T08 |
 | T11 | Atualizar memória da conversa no Google Drive (skill `project-conversation-memory`) | — | T10 |

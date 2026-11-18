@@ -130,6 +130,7 @@ Fixtures-chave (`tests/conftest.py`):
 | I-16 | suggester falhando → 200 `{"suggestion": null}`; banco inalterado |
 | I-17 | `suggest` + nenhum `labels` + `skip` → banco inalterado (a sugestão nunca é salva sem confirmação) |
 | I-18 | `POST /api/suggest` token desconhecido → 404 |
+| I-20 | `GET /healthz` → 200 `{"status":"ok"}` sem tocar fontes, modelo nem banco |
 | I-19 | o cliente não consegue forjar a sugestão: campos `suggested_*` enviados em `/api/labels` são ignorados/rejeitados (422) |
 
 ### 3.7 E2E (`tests/e2e/test_ui.py`, Playwright, servidor com fontes fake)
@@ -156,6 +157,9 @@ Fixtures-chave (`tests/conftest.py`):
 |---|---|
 | L-01 | cada uma das 3 fontes responde `?f=json` e contém os campos do `FIELD_MAP` |
 | L-02 | `list_ids()` e `fetch()` reais devolvem uma `Application` válida por fonte |
+| D-01 | (pós-deploy) `curl -I https://planlabel-test.bundoran.tech` sem credencial → 401 |
+| D-02 | (pós-deploy) com credencial: `/healthz` 200 e `/api/next` 200 com aplicação real |
+| D-03 | (pós-deploy) `docker compose restart` não perde registros (volume persistente) |
 | L-03 | com `GEMINI_API_KEY`, `gemini-decision-1` devolve sugestão válida para 3 descrições conhecidas (wind farm, house extension, BESS) |
 
 ## 4. Matriz de rastreabilidade
