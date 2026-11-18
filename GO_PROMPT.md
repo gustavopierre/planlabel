@@ -25,11 +25,12 @@ opção proposta como padrão, a menos que o arquivo registre outra decisão.
    commit (`feat(T0x): …`).
 3. Nunca use rede real nos testes padrão (use `respx` e fakes). Testes reais só em `tests/live/` com `-m live`.
 4. Não altere testes para fazê-los passar, exceto se o teste contrariar a SPEC — nesse caso corrija a SPEC primeiro e explique no commit.
-5. Não grave segredos. `GEMINI_API_KEY`, segredos OAuth do Google e chaves de tradução só por variáveis de ambiente; nunca peça para colá-los no chat.
-6. Ao fim de cada tarefa grande (T03, T05, T07, T08, T10), atualize a memória da conversa
+5. Procedimentos operacionais (deploy, credenciais, backup, rotação de segredos) viram **runbooks** em `docs/runbooks/` (um arquivo por procedimento, nome em `kebab-case`, listado no índice `docs/runbooks/README.md`). Se não houver acesso SSH à VPS, o deploy da T12 vira o runbook `deploy-vps3.md`.
+6. Não grave segredos. `GEMINI_API_KEY`, segredos OAuth do Google e chaves de tradução só por variáveis de ambiente; nunca peça para colá-los no chat.
+7. Ao fim de cada tarefa grande (T03, T05, T07, T08, T10), atualize a memória da conversa
    no Google Drive com a skill `project-conversation-memory` (projeto
    `generator_plan_app_data_for_training`).
-7. Faça push para o branch de trabalho ao fim de cada tarefa.
+8. Faça push para o branch de trabalho ao fim de cada tarefa.
 
 ## Critério de conclusão (todos obrigatórios)
 
@@ -52,7 +53,7 @@ opção proposta como padrão, a menos que o arquivo registre outra decisão.
 - [ ] **C12** — Memória da conversa atualizada no Google Drive (sessão + índices).
 - [ ] **C13** — Sugestão não salva sozinha: S-14, I-15, I-17, E-11 e E-12 verdes; a única rota que escreve no banco é `POST /api/labels` (verificado por teste ou por grep no código).
 - [ ] **C14** — Falha do `gemini-decision-1` não bloqueia: G-04, G-05, I-16, E-15 verdes; app funciona com `PLANLABEL_SUGGESTER=none`.
-- [ ] **C15** — App de teste no ar em `https://planlabel-test.bundoran.tech` (VPS 3, Caddy compartilhado, **login Google via oauth2-proxy**): D-01..D-06 verificados (D-03/D-04 manuais, pelo dono); `GEMINI_API_KEY` e segredos OAuth só no `.env` do servidor; nenhuma porta do app publicada no host; mudança no Caddyfile registrada no projeto `vps_infra`. Se faltar acesso SSH à VPS a partir da sessão, deixar `Dockerfile`/compose prontos e o passo a passo em `docs/DEPLOY.md`, e marcar o item como bloqueado com o motivo.
+- [ ] **C15** — App de teste no ar em `https://planlabel-test.bundoran.tech` (VPS 3, Caddy compartilhado, **login Google via oauth2-proxy**): D-01..D-06 verificados (D-03/D-04 manuais, pelo dono); `GEMINI_API_KEY` e segredos OAuth só no `.env` do servidor; nenhuma porta do app publicada no host; mudança no Caddyfile registrada no projeto `vps_infra`. Se faltar acesso SSH à VPS a partir da sessão, deixar `Dockerfile`/compose prontos e o runbook `docs/runbooks/deploy-vps3.md`, e marcar o item como bloqueado com o motivo.
 
 Ao terminar, responda com a lista C1–C15 marcada e a evidência de cada item
 (saída resumida dos comandos, hash do commit).

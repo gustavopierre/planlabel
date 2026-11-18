@@ -1,7 +1,7 @@
-# Passo a passo — autorização de login Google (Google Cloud Console)
+# Runbook — autorização de login Google (Google Cloud Console)
 
 Objetivo: criar a credencial OAuth que o **oauth2-proxy** usa para exigir login com conta
-Google em `https://planlabel-test.bundoran.tech` (ver [ARCHITECTURE.md §5](ARCHITECTURE.md#5-deploy-de-teste--vps-3-httpsplanlabel-testbundorantech)).
+Google em `https://planlabel-test.bundoran.tech` (ver [ARCHITECTURE.md §5](../ARCHITECTURE.md#5-deploy-de-teste--vps-3-httpsplanlabel-testbundorantech)).
 
 Tempo estimado: 15 minutos. Custo: zero (login Google não é cobrado).
 

@@ -17,5 +17,5 @@ tarefa = testes listados verdes + `ruff` limpo + commit feito.
 | T08 | Frontend `static/`: layout, estados, diálogo, teclado, pré-preenchimento | E-01..E-15 | T07 |
 | T09 | Testes live opcionais | L-01..L-03 (quando a rede/chave permitir) | T04, T06b |
 | T10 | `README.md` (instalar, rodar, testar, exportar), conferência do critério de conclusão | checklist do `GO_PROMPT.md` | T01..T08 |
-| T12 | Deploy de teste na VPS 3: `Dockerfile`, `docker-compose.edge.yml`, `.env.example`, `/healthz`; branch `develop`; container `planlabel-oauth2` (oauth2-proxy, Google) e bloco `forward_auth` no Caddyfile compartilhado; `emails.txt` com os e-mails autorizados (pré-requisito do dono: [GOOGLE_OAUTH_SETUP.md](GOOGLE_OAUTH_SETUP.md)); registrar no `vps_infra` | I-20, D-01..D-06 | T07, T08 |
+| T12 | Deploy de teste na VPS 3: `Dockerfile`, `docker-compose.edge.yml`, `.env.example`, `/healthz`; branch `develop`; container `planlabel-oauth2` (oauth2-proxy, Google) e bloco `forward_auth` no Caddyfile compartilhado; `emails.txt` com os e-mails autorizados (pré-requisito do dono: [runbook google-oauth-setup](runbooks/google-oauth-setup.md)); registrar no `vps_infra` | I-20, D-01..D-06 | T07, T08 |
 | T11 | Atualizar memória da conversa no Google Drive (skill `project-conversation-memory`) | — | T10 |
