@@ -13,5 +13,6 @@ Web app minimalista para rotular, uma por vez, planning applications irlandesas
 | [docs/SPEC.md](docs/SPEC.md) | fontes, schema SQLite, API, interface |
 | [docs/TDD.md](docs/TDD.md) | catálogo de testes e rastreabilidade |
 | [docs/TASKS.md](docs/TASKS.md) | tarefas T00–T11 |
+| [docs/GOOGLE_OAUTH_SETUP.md](docs/GOOGLE_OAUTH_SETUP.md) | passo a passo da credencial de login Google (Google Cloud Console + `.env` na VPS 3) |
 | [GO_PROMPT.md](GO_PROMPT.md) | prompt de execução com critério de conclusão |
 | [LEIA_ME_memoria_no_drive.md](LEIA_ME_memoria_no_drive.md) | onde está a memória das conversas |
