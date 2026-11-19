@@ -138,34 +138,29 @@ Tempo estimado: 15 minutos. Custo: zero (login Google não é cobrado).
 
 ## Parte 7 — Gravar os segredos na VPS 3
 
-25. Ainda na VPS 3, crie a pasta do app e o `.env`:
+Os segredos ficam em `/opt/planlabel/` (convenção do `vps_infra`: segredos em
+`/opt/<sistema>/`, código em `/home/deploy/<repositório>`). O login Google tem um arquivo
+**só dele** (`oauth2.env`), separado das chaves dos modelos (`app.env`, criado no
+[runbook deploy-vps3](deploy-vps3.md)), para o container do oauth2-proxy não receber as
+chaves da API.
+
+25. Ainda na VPS 3, crie a pasta:
 
     ```bash
-    mkdir -p ~/planlabel/oauth2 && cd ~/planlabel
+    sudo mkdir -p /opt/planlabel && sudo chown deploy:deploy /opt/planlabel && chmod 700 /opt/planlabel
     ```
 
     ```bash
-    nano .env
+    nano /opt/planlabel/oauth2.env
     ```
 
-    Conteúdo (substitua os `<...>`; não use aspas):
+    Conteúdo (substitua os `<...>`; sem aspas). As demais opções do oauth2-proxy já estão
+    no `docker-compose.edge.yml` do repositório:
 
     ```dotenv
-    # --- oauth2-proxy (login Google) ---
-    OAUTH2_PROXY_PROVIDER=google
     OAUTH2_PROXY_CLIENT_ID=<ID do cliente>.apps.googleusercontent.com
     OAUTH2_PROXY_CLIENT_SECRET=<GOCSPX-...>
     OAUTH2_PROXY_COOKIE_SECRET=<saída do openssl>
-    OAUTH2_PROXY_REDIRECT_URL=https://planlabel-test.bundoran.tech/oauth2/callback
-    OAUTH2_PROXY_AUTHENTICATED_EMAILS_FILE=/etc/oauth2-proxy/emails.txt
-    OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
-    OAUTH2_PROXY_REVERSE_PROXY=true
-    OAUTH2_PROXY_SET_XAUTHREQUEST=true
-    OAUTH2_PROXY_COOKIE_SECURE=true
-    OAUTH2_PROXY_UPSTREAMS=static://202
-
-    # --- app ---
-    GEMINI_API_KEY=<sua chave da API Gemini>
     ```
 
     Salve com `Ctrl+O`, `Enter`, e saia com `Ctrl+X`.
@@ -173,26 +168,29 @@ Tempo estimado: 15 minutos. Custo: zero (login Google não é cobrado).
 26. Crie a lista de e-mails autorizados (um por linha):
 
     ```bash
-    nano ~/planlabel/oauth2/emails.txt
+    nano /opt/planlabel/emails.txt
     ```
 
 27. Proteja os arquivos:
 
     ```bash
-    chmod 600 ~/planlabel/.env ~/planlabel/oauth2/emails.txt
+    chmod 600 /opt/planlabel/oauth2.env && chmod 644 /opt/planlabel/emails.txt
     ```
 
-28. Pronto da sua parte. A tarefa **T12** do `GO_PROMPT.md` sobe os containers
-    `planlabel` e `planlabel-oauth2` (o compose monta `~/planlabel/oauth2/emails.txt` em
-    `/etc/oauth2-proxy/emails.txt`) e adiciona o bloco no Caddyfile compartilhado.
+    (`emails.txt` fica legível porque o container do oauth2-proxy roda com outro usuário;
+    ele não tem segredo, só a lista de e-mails.)
+
+28. Pronto da sua parte. Siga para o [runbook deploy-vps3](deploy-vps3.md), que cria o
+    `app.env`, sobe os containers `planlabel` e `planlabel-oauth2` e adiciona o bloco no
+    Caddyfile compartilhado.
 
 ## Parte 8 — Manutenção
 
-- **Adicionar/remover quem pode entrar:** edite `~/planlabel/oauth2/emails.txt` e rode
-  `docker compose -f docker-compose.edge.yml restart planlabel-oauth2`. Em modo Teste,
+- **Adicionar/remover quem pode entrar:** edite `/opt/planlabel/emails.txt` e rode, em
+  `~/planlabel`, `docker compose -f docker-compose.edge.yml restart planlabel-oauth2`. Em modo Teste,
   adicione a pessoa também em *Usuários de teste* (Parte 3).
 - **Trocar o Client Secret** (vazou ou perdeu): Google Auth Platform › **Clientes** ›
-  `planlabel-test oauth2-proxy` › **Adicionar segredo** › atualize o `.env` › reinicie o
+  `planlabel-test oauth2-proxy` › **Adicionar segredo** › atualize `/opt/planlabel/oauth2.env` › reinicie o
   `planlabel-oauth2` › volte e **desative/exclua o segredo antigo**.
 - **Produção futura** (`planlabel.bundoran.tech`): adicione um segundo URI de
   redirecionamento `https://planlabel.bundoran.tech/oauth2/callback` no mesmo cliente,
@@ -205,8 +203,8 @@ Tempo estimado: 15 minutos. Custo: zero (login Google não é cobrado).
 - [ ] Seu e-mail em *Usuários de teste*.
 - [ ] Cliente "Aplicativo da Web" com o URI `https://planlabel-test.bundoran.tech/oauth2/callback`.
 - [ ] Client ID e Client Secret guardados (JSON baixado, fora do git).
-- [ ] `~/planlabel/.env` na VPS 3 preenchido, `chmod 600`.
-- [ ] `~/planlabel/oauth2/emails.txt` com os e-mails autorizados, `chmod 600`.
+- [ ] `/opt/planlabel/oauth2.env` na VPS 3 preenchido, `chmod 600`.
+- [ ] `/opt/planlabel/emails.txt` com os e-mails autorizados.
 - [ ] Nenhum segredo colado no chat, em commit ou em print.
 
 ## Problemas comuns

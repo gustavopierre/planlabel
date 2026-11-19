@@ -226,13 +226,16 @@ Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria
   O mesmo padrão pode proteger depois os outros apps de teste da VPS 3 (`lo-eng-test`,
   `roxjournal-test`); isso é decisão do projeto `vps_infra`.
 - **Arquivos no repositório do app:** `Dockerfile` (python:3.12-slim, usuário não root,
-  `uvicorn planlabel.api:app --host 0.0.0.0 --port 8000`), `docker-compose.edge.yml`
-  (serviços `planlabel` e `planlabel-oauth2`, rede `edge` externa, sem `ports:`,
-  volume `planlabel_data:/app/data`, `env_file: .env`, `restart: unless-stopped`,
-  healthcheck em `/healthz`), `.env.example` (só nomes das variáveis, sem valores).
-- **Segredos:** `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `OAUTH2_PROXY_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`
-  (e chaves de tradução, se houver) só em `~/planlabel/.env` na VPS, modo 600, fora do git;
-  `emails.txt` também fora do git.
+  `python -m planlabel` em `0.0.0.0:8000`, healthcheck em `/healthz`), `docker-compose.edge.yml`
+  (projeto `planlabel-test`, serviços `planlabel` e `planlabel-oauth2`, rede `edge` externa,
+  sem `ports:`, volume `planlabel_data:/app/data`, `env_file` em `/opt/planlabel/`,
+  `restart: unless-stopped`), `.env.example` (nomes das variáveis, sem as chaves).
+- **Segredos:** em `/opt/planlabel/` na VPS 3 (convenção do `vps_infra`), modo 600, fora do
+  git: `app.env` (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `PLANLABEL_*`) e `oauth2.env`
+  (`OAUTH2_PROXY_CLIENT_ID`, `_CLIENT_SECRET`, `_COOKIE_SECRET`), separados para o
+  oauth2-proxy não receber as chaves dos modelos; `emails.txt` (lista de e-mails) também lá.
+  Código em `/home/deploy/planlabel` (clone do `develop`). Passo a passo:
+  [runbook deploy-vps3](runbooks/deploy-vps3.md).
 - **Dados:** SQLite no volume `planlabel_data`. Backup diário fora do servidor
   (`sqlite3 labels.sqlite3 ".backup ..."` → cópia para o Drive/PC) — **[DECIDIR]** destino e rotina.
 - **Divisão de trabalho:** o deploy do app é deste projeto; a alteração no `Caddyfile` e nas
