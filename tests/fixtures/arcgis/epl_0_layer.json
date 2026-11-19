@@ -1,0 +1,224 @@
+{
+ "name": "Planning Application Points",
+ "type": "Feature Layer",
+ "geometryType": "esriGeometryPoint",
+ "objectIdField": "OBJECTID",
+ "maxRecordCount": 2000,
+ "fields": [
+  {
+   "name": "OBJECTID",
+   "type": "esriFieldTypeOID",
+   "alias": "OBJECTID"
+  },
+  {
+   "name": "PlanningAuthority",
+   "type": "esriFieldTypeString",
+   "alias": "Planning Authority",
+   "length": 100
+  },
+  {
+   "name": "ApplicationNumber",
+   "type": "esriFieldTypeString",
+   "alias": "Application Number",
+   "length": 50
+  },
+  {
+   "name": "DevelopmentDescription",
+   "type": "esriFieldTypeString",
+   "alias": "Development Description",
+   "length": 12500
+  },
+  {
+   "name": "DevelopmentAddress",
+   "type": "esriFieldTypeString",
+   "alias": "Development Address",
+   "length": 7500
+  },
+  {
+   "name": "DevelopmentPostcode",
+   "type": "esriFieldTypeString",
+   "alias": "Development Postcode",
+   "length": 50
+  },
+  {
+   "name": "ITMEasting",
+   "type": "esriFieldTypeDouble",
+   "alias": "ITMEasting"
+  },
+  {
+   "name": "ITMNorthing",
+   "type": "esriFieldTypeDouble",
+   "alias": "ITMNorthing"
+  },
+  {
+   "name": "ApplicationStatus",
+   "type": "esriFieldTypeString",
+   "alias": "Application Status",
+   "length": 4500
+  },
+  {
+   "name": "ApplicationType",
+   "type": "esriFieldTypeString",
+   "alias": "Application Type",
+   "length": 150
+  },
+  {
+   "name": "ApplicantForename",
+   "type": "esriFieldTypeString",
+   "alias": "Applicant Forename",
+   "length": 2500
+  },
+  {
+   "name": "ApplicantSurname",
+   "type": "esriFieldTypeString",
+   "alias": "Applicant Surname",
+   "length": 2500
+  },
+  {
+   "name": "ApplicantAddress",
+   "type": "esriFieldTypeString",
+   "alias": "Applicant Address",
+   "length": 2500
+  },
+  {
+   "name": "Decision",
+   "type": "esriFieldTypeString",
+   "alias": "Decision",
+   "length": 12500
+  },
+  {
+   "name": "LandUseCode",
+   "type": "esriFieldTypeString",
+   "alias": "Land Use Code",
+   "length": 100
+  },
+  {
+   "name": "AreaofSite",
+   "type": "esriFieldTypeDouble",
+   "alias": "AreaofSite"
+  },
+  {
+   "name": "NumResidentialUnits",
+   "type": "esriFieldTypeInteger",
+   "alias": "NumResidentialUnits"
+  },
+  {
+   "name": "OneOffHouse",
+   "type": "esriFieldTypeString",
+   "alias": "One-Off House",
+   "length": 50
+  },
+  {
+   "name": "FloorArea",
+   "type": "esriFieldTypeDouble",
+   "alias": "FloorArea"
+  },
+  {
+   "name": "ReceivedDate",
+   "type": "esriFieldTypeDate",
+   "alias": "ReceivedDate",
+   "length": 8
+  },
+  {
+   "name": "WithdrawnDate",
+   "type": "esriFieldTypeDate",
+   "alias": "WithdrawnDate",
+   "length": 8
+  },
+  {
+   "name": "DecisionDate",
+   "type": "esriFieldTypeDate",
+   "alias": "DecisionDate",
+   "length": 8
+  },
+  {
+   "name": "DecisionDueDate",
+   "type": "esriFieldTypeDate",
+   "alias": "DecisionDueDate",
+   "length": 8
+  },
+  {
+   "name": "GrantDate",
+   "type": "esriFieldTypeDate",
+   "alias": "GrantDate",
+   "length": 8
+  },
+  {
+   "name": "ExpiryDate",
+   "type": "esriFieldTypeDate",
+   "alias": "ExpiryDate",
+   "length": 8
+  },
+  {
+   "name": "AppealRefNumber",
+   "type": "esriFieldTypeString",
+   "alias": "Appeal Reference Number",
+   "length": 80
+  },
+  {
+   "name": "AppealStatus",
+   "type": "esriFieldTypeString",
+   "alias": "Appeal Status",
+   "length": 3500
+  },
+  {
+   "name": "AppealDecision",
+   "type": "esriFieldTypeString",
+   "alias": "Appeal Decision",
+   "length": 3500
+  },
+  {
+   "name": "AppealDecisionDate",
+   "type": "esriFieldTypeDate",
+   "alias": "AppealDecisionDate",
+   "length": 8
+  },
+  {
+   "name": "AppealSubmittedDate",
+   "type": "esriFieldTypeDate",
+   "alias": "AppealSubmittedDate",
+   "length": 8
+  },
+  {
+   "name": "FIRequestDate",
+   "type": "esriFieldTypeDate",
+   "alias": "FIRequestDate",
+   "length": 8
+  },
+  {
+   "name": "FIRecDate",
+   "type": "esriFieldTypeDate",
+   "alias": "FIRecDate",
+   "length": 8
+  },
+  {
+   "name": "LinkAppDetails",
+   "type": "esriFieldTypeString",
+   "alias": "Link Application Details",
+   "length": 200
+  },
+  {
+   "name": "OneOffKPI",
+   "type": "esriFieldTypeString",
+   "alias": "One-Off KPI",
+   "length": 50
+  },
+  {
+   "name": "ETL_DATE",
+   "type": "esriFieldTypeDate",
+   "alias": "ETL_DATE",
+   "length": 8
+  },
+  {
+   "name": "SiteId",
+   "type": "esriFieldTypeString",
+   "alias": "Site Id",
+   "length": 100
+  },
+  {
+   "name": "ORIG_FID",
+   "type": "esriFieldTypeInteger",
+   "alias": "ORIG_FID"
+  }
+ ]
+}

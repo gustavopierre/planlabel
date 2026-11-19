@@ -38,9 +38,9 @@ Fixtures-chave (`tests/conftest.py`):
 | M-02 | subcategoria ou categoria fora da lista (`"nuclear"`) ou ausente → `ValidationError` |
 | M-03 | rótulo humano incoerente (`energy` + `low_energy`, `not_energy` + `wind`) → `ValidationError` |
 | M-04 | `Decision` com duas distribuições válidas: `subcategory`/`subcategory_pct` = maior das 11, `category`/`category_pct` = maior das 2, cada uma da sua distribuição; `stored()` devolve o JSON com essas quatro chaves |
-| M-05 | cada distribuição: soma 97 → normalizada para 100 (maior resto); soma 80, chave faltando, chave extra, valor < 0 ou > 100 → `ValidationError` |
+| M-05 | probabilidades (soma 0,98–1,02) → percentuais inteiros que somam 100 (maior resto); soma fora da faixa, chave faltando, chave extra, valor < 0 ou > 1 → `ValidationError` |
 | M-06 | `Application` com número ou descrição vazio/só espaços → `ValidationError`; `application_url` não vazio sem `https://` → `ValidationError` |
-| M-07 | empate no maior percentual → subcategoria: a primeira na ordem canônica; categoria: `energy` |
+| M-07 | a escolha é o `choice` da API, mesmo quando o arredondamento empata percentuais |
 | M-08 | decisão contraditória (wind 60 %, `not_energy` 55 %) é **válida**, com `consistent=False` e as duas escolhas preservadas |
 
 ### 3.2 Repository (`tests/unit/test_repository.py`)
@@ -61,13 +61,13 @@ Fixtures-chave (`tests/conftest.py`):
 ### 3.3 ArcGISSource (`tests/unit/test_arcgis_source.py`, com `respx`)
 | ID | Caso |
 |---|---|
-| A-01 | `list_ids()` lê `objectIds` da resposta |
+| A-01 | `list_ids()` lê `objectIds` da resposta; com `exceededTransferLimit: true` pede a próxima página com `OBJECTID > maior ID` até acabar (400 000 + 112 860 → 512 860) |
 | A-02 | `list_ids()` usa cache dentro do TTL (1 chamada HTTP para 2 invocações) e recarrega após o TTL (relógio injetado) |
 | A-03 | `fetch(id)` monta a query correta (`objectIds`, `outFields`, `returnGeometry=false`) |
 | A-04 | `fetch(id)` mapeia campos por fonte (`abp`: ABPCASEID/DEVDESC/PLANINGATY; `epl_*`: ApplicationNumber/…) |
 | A-05 | normaliza texto (strip, colapsa espaços) |
 | A-06 | `fetch` de registro sem descrição → `None` (inválido) |
-| A-10 | `fetch` preenche `application_url` pelo campo ou modelo de URL de cada fonte (`FIELD_MAP`); fonte sem link → `''` |
+| A-10 | `fetch` preenche `application_url` com `LINKABPWEB`/`LinkAppDetails`; link vazio → `''`; `http://` é aceito; `outFields` nunca contém campos `Applicant*` |
 | A-07 | corpo `{"error": ...}` com HTTP 200 → `SourceError` |
 | A-08 | 503 duas vezes e 200 na terceira → sucesso (retry); 4 falhas → `SourceError` |
 | A-09 | timeout → `SourceError` |
@@ -92,13 +92,13 @@ Fixtures-chave (`tests/conftest.py`):
 ### 3.4.1 Decisor do slot 1 — `GeminiDecider` (`tests/unit/test_decider_gemini.py`, com `respx`)
 | ID | Caso |
 |---|---|
-| G-01 | requisição vai para `.../models/gemini-decision-1:generateContent` com header `x-goog-api-key`, `temperature: 0`, `responseMimeType` JSON e `responseSchema` com `subcategories` (11 inteiros) antes de `categories` (2 inteiros), todos obrigatórios |
-| G-02 | resposta válida (subcategorias wind 82, hybrid 4, …; categorias energy 91) → `Decision(model="gemini-decision-1", subcategory=wind, subcategory_pct=82, category=energy, category_pct=91, consistent=True)` |
-| G-03 | resposta contraditória (wind 60; not_energy 55) → `Decision` válida com `consistent=False` (não vira erro) |
-| G-04 | JSON inválido, `categories` ou `subcategories` faltando, chave faltando ou soma fora de 90–110 → `decision=None`, `reason="error"` (não levanta) |
+| G-01 | requisição `POST .../v1beta/decisions` com header `x-goog-api-key`, `model: "gemini-decision-1"`, a descrição em `input` e as perguntas `subcategory` (choice, 11 opções) e `category` (choice, 2 opções) |
+| G-02 | resposta real gravada (`decision_wind_valid.json`) → `Decision(model="gemini-decision-1", subcategory=wind, subcategory_pct=99, category=energy, category_pct=100, consistent=True)`; os 11 percentuais somam 100 |
+| G-03 | resposta contraditória (subcategory `wind`, category `not_energy`) → `Decision` válida com `consistent=False` (não vira erro) |
+| G-04 | resposta sem uma das perguntas, opção desconhecida, probabilidades que não somam ~1, HTTP 400 de segurança → `decision=None`, `reason="error"` (não levanta) |
 | G-05 | HTTP 429 → `reason="rate_limited"`; 500 e timeout → `reason="error"`; sem retry (1 chamada só) |
 | G-06 | cache: mesma descrição → 1 chamada HTTP |
-| G-07 | snapshot do prompt de sistema compartilhado pelos dois decisores (mudança no prompt exige atualizar o snapshot conscientemente); o prompt contém as 11 subcategorias do §1.1, as pistas de wind/solar e pede subcategorias antes de categorias |
+| G-07 | snapshot das perguntas compartilhadas pelos dois decisores (mudança exige atualizar o snapshot conscientemente); as perguntas contêm as 11 subcategorias e 2 categorias do §1.1 e as pistas de wind/solar |
 | G-08 | sem `GEMINI_API_KEY` → nenhuma chamada HTTP, `decision=None`, `reason="no_key"`, `model="gemini-decision-1"`; `PLANLABEL_MODEL1_ID` troca o modelo da URL |
 | G-09 | cada requisição enviada soma 1 em `model_usage` (200, 429, 500 e timeout); resposta do cache não soma |
 | G-10 | 10 000 requisições no dia ou 200 no minuto → nenhuma chamada HTTP, `reason="quota_exhausted"` |
@@ -107,10 +107,10 @@ Fixtures-chave (`tests/conftest.py`):
 ### 3.4.2 Decisor do slot 2 — `OpenRouterDecider` (`tests/unit/test_decider_openrouter.py`, com `respx`)
 | ID | Caso |
 |---|---|
-| O-01 | requisição para `https://openrouter.ai/api/v1/chat/completions` com `Authorization: Bearer`, `model` = `PLANLABEL_MODEL2_ID`, `temperature: 0`, `response_format` `json_schema` estrito com `subcategories` e `categories` e o mesmo prompt de sistema do G-07; sem headers `HTTP-Referer`/`X-Title` |
-| O-02 | resposta válida → `Decision` com `model="typesafe/jev-1.14"` |
-| O-03 | `content` inválido ou corpo com `error` → `decision=None`, `reason="error"` |
-| O-04 | 429 → `rate_limited`; 5xx e timeout → `error`; sem retry |
+| O-01 | requisição `POST https://openrouter.ai/api/alpha/decisions` com `Authorization: Bearer`, `model: "typesafe/jev-1.14"`, a descrição em `state` e as mesmas perguntas do G-07; sem `user`, `session_id`, `trace` nem headers opcionais |
+| O-02 | resposta real gravada (`jev_decision_wind.json`) → `Decision` com subcategory wind 100 %, category energy 100 %; `model` = snapshot da resposta (`typesafe/jev-1.14-20261014`) registrado em log |
+| O-03 | resposta com `refusal`, sem uma das perguntas ou com `error` no corpo → `decision=None`, `reason="error"` |
+| O-04 | 429 → `rate_limited`; 402 (sem créditos), 5xx e timeout → `error`; sem retry |
 | O-05 | sem `OPENROUTER_API_KEY` → nenhuma chamada HTTP, `reason="no_key"`, `model="typesafe/jev-1.14"`; alias `~typesafe/jev-latest` é recusado na inicialização |
 | O-07 | faltando qualquer um de `PLANLABEL_MODEL{1,2}_PROVIDER`/`_ID` → o app não sobe e a mensagem cita a variável que falta |
 | O-06 | uso contado em `model_usage` por dia UTC (requisições e tokens de `usage.total_tokens`); limites `0` = sem bloqueio; limite > 0 atingido → `quota_exhausted` |
@@ -118,7 +118,7 @@ Fixtures-chave (`tests/conftest.py`):
 ### 3.4.3 Conselheiro — `GeminiAdvisor` (`tests/unit/test_advisor.py`, com `respx` e `clock`)
 | ID | Caso |
 |---|---|
-| H-01 | requisição para `.../models/gemini-2.5-flash-lite:generateContent` com a mesma `GEMINI_API_KEY`; saída JSON `{category, subcategory, text}` |
+| H-01 | requisição para `.../models/<PLANLABEL_ADVISOR_ID>:generateContent` com a mesma `GEMINI_API_KEY`; saída JSON `{category, subcategory, text}` |
 | H-02 | resposta válida → `Opinion`; inválida, 5xx ou timeout → `AdvisorError` |
 | H-03 | 15 requisições em 60 s → `status.available=false`, `reason="rpm"`, `retry_at` = requisição mais antiga + 60 s; avançar o relógio além de `retry_at` → disponível |
 | H-04 | tokens na janela (de `usageMetadata.totalTokenCount`) + estimativa > 25 000 → `reason="tpm"`; volta quando os tokens saem da janela |

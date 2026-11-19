@@ -21,7 +21,7 @@ Referências: [PRD](PRD.md) · [Arquitetura](ARCHITECTURE.md) · [TDD](TDD.md) �
 
 ### 1.1 Taxonomia (guia de rotulagem)
 
-É o guia do rotulador humano e o conteúdo do prompt dos modelos (§4.2). A ordem da tabela
+É o guia do rotulador humano e o conteúdo das perguntas feitas aos modelos (§4.2). A ordem da tabela
 é a ordem canônica (desempate, teclado, exibição). Teclas: `E`/`N` escolhem a categoria;
 os números escolhem a subcategoria **dentro** da categoria escolhida.
 
@@ -49,33 +49,49 @@ em qualquer potência); outras fontes (biomassa, diesel etc.) são sempre `low_e
 
 ## 2. Fontes
 
-| `source` | URL base (`/query` acrescentado pelo cliente) | número | descrição | autoridade |
-|---|---|---|---|---|
-| `abp` | `https://services-eu1.arcgis.com/o56BSnENmD5mYs3j/ArcGIS/rest/services/Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` | `PLANINGATY` |
-| `epl_1` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` |
-| `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber`* | `DevelopmentDescription`* | `PlanningAuthority`* |
+| `source` | URL base (`/query` acrescentado pelo cliente) | número | descrição | autoridade | link |
+|---|---|---|---|---|---|
+| `abp` | `https://services-eu1.arcgis.com/o56BSnENmD5mYs3j/ArcGIS/rest/services/Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` | `PLANINGATY` | `LINKABPWEB` |
+| `epl_1` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
+| `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
 
-\* Confirmar na tarefa **T00** (que também confirma os nomes dos três modelos na API) com `GET <url>?f=json`. Esquema do `abp` verificado em
-2026-11-18 (27 310 registros, `maxRecordCount` 2000, `OBJECTID` como OID). Em 2026-11-19,
-na VPS 2, `epl_1` e `epl_0` responderam `returnCountOnly` com 512 624 e 512 860 registros.
+**Verificado na T00 (2026-11-19, VPS 2)** — esquemas em `tests/fixtures/arcgis/*_layer.json`:
+- `abp` — "Cases", polígonos, 27 310 registros, `OBJECTID` como OID, `maxRecordCount` 2000.
+  `LINKABPWEB` sempre preenchido (`https://www.pleanala.ie/en-ie/case/<ABPCASEID>`).
+- `epl_1` — "Planning Application Sites" (polígonos dos terrenos), 512 624 registros.
+- `epl_0` — "Planning Application Points" (pontos), 512 860 registros. Tem também campos
+  pessoais do requerente (`ApplicantForename`, `ApplicantSurname`, `ApplicantAddress`):
+  **nunca** pedir esses campos em `outFields`.
+- **`epl_0` e `epl_1` são as mesmas aplicações** em geometrias diferentes (5 de 5 aplicações
+  de `epl_1` testadas existem em `epl_0`). Ver [DECIDIR] abaixo.
+- `LinkAppDetails` (ePlanning): 63 913 de 512 860 vazios; 235 788 começam com `http://`
+  (sem s); o domínio varia por conselho (ex.: `eplanning.ie/CarlowCC/...`,
+  `planning.agileapplications.ie/corkcoco/...`). Link aceito se começar com `http://` ou `https://`.
+- `ApplicationNumber` pode vir com espaços à direita (ex.: `F19A/0014     `): a normalização
+  (`strip()`) é obrigatória antes da checagem de duplicata.
+
 O mapeamento fica num dicionário `FIELD_MAP` em `planlabel/sources/arcgis.py`; nenhum
-nome de campo aparece em outro lugar do código.
+nome de campo aparece em outro lugar do código. Sem link → `application_url` vazio (`''`),
+sem bloquear a rotulagem.
 
-**Link da aplicação (`application_url`):** cada fonte define como obter o link da página
-pública da aplicação — um campo da camada (o ePlanning costuma ter um campo de link para os
-detalhes da aplicação) ou um modelo de URL montado com o número (ABP: página do caso no site
-do An Coimisiún Pleanála). O campo ou o modelo de cada fonte é **confirmado na T00** e fica
-no `FIELD_MAP`. Sem link disponível → `application_url` vazio (`''`), sem bloquear a rotulagem.
+**[DECIDIR] Camadas duplicadas do ePlanning.** Proposta: usar só `epl_0` (pontos; tem 236
+registros a mais) e o rodízio vira `abp → epl_0 → abp …`. Alternativa: manter as duas e
+deduplicar o ePlanning por `(planning_authority, application_number)` sem olhar a camada —
+mas o ePlanning apareceria duas vezes mais que o ABP no rodízio.
 
 ### 2.1 Chamadas ao ArcGIS
 
 | Uso | Parâmetros de `GET <url>/query` |
 |---|---|
-| Lista de IDs | `where=1=1&returnIdsOnly=true&f=json` → `{"objectIds":[...]}` |
+| Lista de IDs | `where=OBJECTID>{último}&returnIdsOnly=true&f=json` → `{"objectIds":[...], "exceededTransferLimit": true?}` — paginado (abaixo) |
 | Um registro | `objectIds=<id>&outFields=<num>,<desc>,<aut>[,<link>]&returnGeometry=false&f=json` |
 
 - Timeout 15 s; até 3 tentativas com backoff exponencial (0,5 s, 1 s, 2 s) em erro de rede/5xx.
 - Resposta com chave `error` (o ArcGIS devolve HTTP 200 com erro no corpo) é tratada como falha.
+- **Paginação da lista de IDs:** o ePlanning devolve no máximo 400 000 IDs por resposta, fora de
+  ordem, com `exceededTransferLimit: true`. Enquanto vier esse sinal, repetir com
+  `where=OBJECTID > <maior ID recebido>` (começando em `OBJECTID > 0`). Verificado na T00: a
+  segunda página trouxe os 112 860 IDs restantes de `epl_0`.
 - Cache da lista de IDs: em memória, TTL 24 h (`PLANLABEL_IDS_TTL_S`).
 - Normalização: `strip()` em todos os textos; espaços internos múltiplos colapsados na descrição.
 
@@ -173,9 +189,9 @@ class Decision(BaseModel):
     subcategory_distribution: dict[Subcategory, int]  # 11 chaves, 0..100, soma 100 (após normalização)
     category_distribution: dict[Category, int]        # 2 chaves, 0..100, soma 100 (após normalização)
     # derivados, cada um da sua própria distribuição (independentes):
-    subcategory: Subcategory              # maior percentual; empate → ordem canônica
+    subcategory: Subcategory              # o `choice` da API (maior probabilidade)
     subcategory_pct: int
-    category: Category                    # maior percentual; empate → energy
+    category: Category                    # o `choice` da API (maior probabilidade)
     category_pct: int
     consistent: bool                      # CATEGORY_OF[subcategory] == category
     def stored(self) -> str: ...          # JSON de mN_decision: category, category_pct, subcategory, subcategory_pct
@@ -188,8 +204,9 @@ class SlotResult(BaseModel):
 ```
 
 **Validação das distribuições** (cada uma separadamente): exatamente as chaves esperadas
-(11 ou 2); inteiros de 0 a 100; soma entre 90 e 110 → normalizada para 100 pelo método do
-maior resto; fora disso → resposta inválida. Contradição entre as duas **não** invalida.
+(11 ou 2); probabilidades entre 0 e 1 com soma entre 0,98 e 1,02 → convertidas para
+percentuais inteiros que somam 100 (maior resto); fora disso → resposta inválida.
+Contradição entre as duas **não** invalida.
 
 ### 4.1 LabelingService
 
@@ -217,87 +234,73 @@ maior resto; fora disso → resposta inválida. Contradição entre as duas **n�
 
 ### 4.2 Modelos decisores
 
+Os dois modelos são **modelos de decisão**: não geram texto; recebem um texto e perguntas de
+escolha fechada e devolvem, numa só passada, a opção escolhida e a **probabilidade de cada
+opção** (soma 1). Os percentuais da tela são essas probabilidades × 100. Verificado na T00
+com chamadas reais (fixtures em `tests/fixtures/gemini/` e `tests/fixtures/openrouter/`).
+
 ```python
 class Decider(Protocol):
     slot: Literal[1, 2]
-    model: str | None
+    model: str
     def decide(self, app: Application) -> SlotResult: ...   # nunca levanta: falha ⇒ decision=None + reason
-    def quota(self) -> Quota | None: ...
+    def quota(self) -> Quota: ...
 ```
 
-Comum aos dois provedores:
-- Mesmo prompt de sistema (abaixo), `temperature: 0`, saída JSON estruturada, numa só
-  chamada, nesta ordem: `subcategories` (objeto com as 11 subcategorias inteiras obrigatórias)
-  e depois `categories` (objeto com `energy` e `not_energy` inteiros obrigatórios). A ordem
-  segue o raciocínio do dono: primeiro a subcategoria, depois a categoria.
-- A descrição vai na mensagem do usuário, sem outros campos.
+**Perguntas (iguais para os dois provedores)** — constantes em `planlabel/deciders/questions.py`,
+geradas da tabela do §1.1, cobertas por teste de snapshot (G-07). Cada pergunta é avaliada de
+forma independente pelo modelo:
+
+```json
+{
+  "subcategory": {
+    "type": "choice",
+    "instructions": "<pista> Which subcategory best describes the main purpose of this development?",
+    "criteria": {"hybrid": "<definição>", "wind": "<definição>", … 11 opções …}
+  },
+  "category": {
+    "type": "choice",
+    "instructions": "<pista> Is this an energy development?",
+    "criteria": {"energy": "<definição>", "not_energy": "<definição>"}
+  }
+}
+```
+
+- `<pista>`: "This is an Irish planning application description. Descriptions rarely say
+  'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years
+  for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels
+  or arrays, hectares of panels."
+- `<definição>` de cada subcategoria: a coluna "Quando usar" do §1.1, em inglês.
+- A descrição da aplicação é o texto compartilhado, sem outros campos.
+- Ordem: a API ordena as opções pelo nome; o desempate exato vai para a primeira em ordem
+  alfabética. A tela usa a ordem canônica do §1.1.
+
+**Slot 1 — `GeminiDecider` (`gemini-decision-1`):**
+`POST https://generativelanguage.googleapis.com/v1beta/decisions`, header `x-goog-api-key`
+(`GEMINI_API_KEY`), corpo `{"model": "gemini-decision-1", "input": <descrição>, "questions": …}`.
+Resposta: `answers.<pergunta>.{choice, probabilities, confidence}` e `usage.total_input_tokens`.
+Na T00: 386 ms, 647 tokens de entrada por aplicação. O modelo **não** aceita `generateContent`
+(só o método de decisões). Bloqueio de segurança → HTTP 400 com `error` → `reason="error"`.
+
+**Slot 2 — `OpenRouterDecider` (`typesafe/jev-1.14`):**
+`POST https://openrouter.ai/api/alpha/decisions`, header `Authorization: Bearer <OPENROUTER_API_KEY>`,
+corpo `{"model": "typesafe/jev-1.14", "state": <descrição>, "questions": …}` (mesmas perguntas;
+o texto vai em `state`, não em `input`). Resposta: `answers.<pergunta>.{choice, probabilities,
+confidence}` (resposta `refusal` → sem decisão), `model` (snapshot resolvido, ex.:
+`typesafe/jev-1.14-20261014`), `usage.{input_tokens, output_tokens, cost}`. Na T00: 352 ms,
+946 tokens, US$ 0,00004 por aplicação. O modelo **não** aceita `chat/completions`. Nunca usar o
+alias `~typesafe/jev-latest`. Nenhum dado do dono vai nos campos opcionais `user`, `session_id`
+ou `trace`, nem em headers opcionais do OpenRouter.
+
+Comum aos dois:
 - Timeout `PLANLABEL_DECIDER_TIMEOUT_S` (10 s), **sem retry**. HTTP 429 → `rate_limited`;
-  outro erro HTTP, timeout, JSON ou distribuição inválidos → `error`; log `WARNING`.
+  outro erro HTTP, timeout, resposta sem as duas perguntas ou com opção desconhecida → `error`;
+  log `WARNING`.
+- Percentual = `round(probabilidade × 100)`; a distribuição é normalizada para somar 100 (maior
+  resto). A escolha (`subcategory`, `category`) é o `choice` da API.
 - Cache LRU (256) por `sha256(description)` em cada decisor.
 - Os dois slots sempre existem e sempre têm nome de modelo. Slot sem a chave do seu provedor
   não chama a API e devolve `decision=None`, `reason="no_key"`.
-
-**Slot 1 — `GeminiDecider` (`gemini-decision-1`):**
-`POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`,
-header `x-goog-api-key` (`GEMINI_API_KEY`); `generationConfig`: `temperature: 0`,
-`responseMimeType: "application/json"`, `responseSchema` =
-`{"type":"OBJECT","properties":{"subcategories":{"type":"OBJECT","properties":{… 11 INTEGER …},"required":[… 11 …]},"categories":{"type":"OBJECT","properties":{"energy":{"type":"INTEGER"},"not_energy":{"type":"INTEGER"}},"required":["energy","not_energy"]}},"required":["subcategories","categories"],"propertyOrdering":["subcategories","categories"]}`.
-Janela de contexto 262 144 tokens (dado do dono); descrições são curtas, sem truncamento.
-
-**Slot 2 — `OpenRouterDecider` (`typesafe/jev-1.14`):**
-`POST https://openrouter.ai/api/v1/chat/completions`, header
-`Authorization: Bearer <OPENROUTER_API_KEY>`; corpo `{"model": <PLANLABEL_MODEL2_ID>,
-"temperature": 0, "messages": [system, user], "response_format": {"type": "json_schema",
-"json_schema": {"name": "planning_decision", "strict": true, "schema": …}}}` (mesma
-estrutura do slot 1, `subcategories` antes de `categories`).
-O ID é a **versão fixa** `typesafe/jev-1.14` (decisão do dono, 2026-11-19); nunca o alias
-`~typesafe/jev-latest`. A T00 confirma que o ID existe no OpenRouter. Resposta em `choices[0].message.content`; corpo com
-`error` → `error`. Nenhum dado do dono (nome, e-mail, projeto) vai em headers opcionais
-do OpenRouter (`HTTP-Referer`, `X-Title`).
-
-**Prompt (system instruction):** gerado a partir da tabela do §1.1, constante em
-`planlabel/deciders/prompt.py`, coberto por teste de snapshot (G-07). Texto:
-
-```
-You classify one Irish planning application description for an energy dataset.
-First judge the subcategory, then judge the category on its own.
-
-Descriptions rarely say "wind farm" or "solar farm". A wind farm shows up as "N turbines",
-"permission for X years to install N turbines", an extension of the permission period,
-changes to turbine tip height, etc. A solar farm shows up as the installation of
-ground-mounted solar PV panels or arrays, hectares of panels, etc.
-
-Category "energy":
-- hybrid: two or more of wind / solar / bess in the same application, 1 MW or more in total.
-- wind: wind turbines or a wind farm (onshore or offshore) of 1 MW or more: installation of
-  N turbines, permission (or extension of permission) for N turbines, turbine replacement
-  (repowering), extensions.
-- solar: ground-mounted solar PV installation (solar farm) of 1 MW or more.
-- bess: battery energy storage system as the main development, any size.
-- hydro: hydroelectric generation, any size.
-- substation: electricity substation (new or upgraded) serving the grid or generation.
-- energy_support: construction works that give relevant support to energy projects:
-  national roads, electricity cables to substations, substation extensions to serve wind
-  or solar farms (ground-mounted solar). It must be a construction work; the wind or solar
-  farm itself is wind or solar.
-- leu: large energy user: factories, industrial complexes, housing developments of
-  200 or more homes in a single application.
-- data_centre: data centre.
-
-Category "not_energy":
-- low_energy: wind / solar / hybrid under 1 MW; housing schemes of fewer than 200 homes;
-  generation from other sources (biomass, diesel, gas, CHP, etc.) of any size; small
-  substations inside houses, schools or supermarkets; rooftop solar panels; electric
-  vehicle charging points.
-- not_energy: everything else, including fences, car parks, buildings that are not
-  substations, depots and warehouses, even when they are part of a wind farm, a solar
-  farm or a large energy user.
-
-Return:
-- subcategories: one integer percentage (0-100) for every subcategory, summing to 100.
-- categories: one integer percentage (0-100) for "energy" and for "not_energy", summing
-  to 100, judged on the description as a whole.
-```
 
 ### 4.3 Conselheiro (botão Dúvida)
 
@@ -315,7 +318,8 @@ AdvisorStatus = {model: str | None, available: bool,
 ```
 
 - `GeminiAdvisor`: modelo `PLANLABEL_ADVISOR_ID` (`gemini-2.5-flash-lite`), **mesma**
-  `GEMINI_API_KEY`, mesmo endpoint `generateContent`. Prompt: a taxonomia do §1.1 + "explique
+  `GEMINI_API_KEY`, endpoint `generateContent`. Na T00, `gemini-2.5-flash-lite` respondeu 404 ("no longer
+  available to new users"); `gemini-3.5-flash-lite` funcionou (1,2 s, ~210 tokens) **[DECIDIR]**. Prompt: a taxonomia do §1.1 + "explique
   em português, em até 80 palavras, qual categoria e qual subcategoria você escolheria e por quê, citando o
   trecho da descrição que decide". Saída JSON `{category, subcategory, text}`.
 - Limites (configuráveis): **15 requisições/min**, **25 000 tokens/min**, **1 000 requisições/dia**.

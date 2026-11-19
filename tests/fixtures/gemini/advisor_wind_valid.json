@@ -1,0 +1,98 @@
+{
+ "request": {
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "Você ajuda a rotular planning applications irlandesas. Categorias: energy (hybrid, wind, solar, bess, hydro, substation, energy_support, leu, data_centre) e not_energy (not_energy, low_energy). Explique em português, em até 80 palavras, qual categoria e qual subcategoria você escolheria e por quê, citando o trecho da descrição que decide."
+    }
+   ]
+  },
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "Permission for a 10 year planning permission for a wind farm development comprising 7 no. wind turbines with a maximum tip height of 150m, an electricity substation, underground cabling and all associated site works."
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "temperature": 0,
+   "responseMimeType": "application/json",
+   "responseSchema": {
+    "type": "OBJECT",
+    "properties": {
+     "category": {
+      "type": "STRING",
+      "enum": [
+       "energy",
+       "not_energy"
+      ]
+     },
+     "subcategory": {
+      "type": "STRING",
+      "enum": [
+       "hybrid",
+       "wind",
+       "solar",
+       "bess",
+       "hydro",
+       "substation",
+       "energy_support",
+       "leu",
+       "data_centre",
+       "not_energy",
+       "low_energy"
+      ]
+     },
+     "text": {
+      "type": "STRING"
+     }
+    },
+    "required": [
+     "category",
+     "subcategory",
+     "text"
+    ],
+    "propertyOrdering": [
+     "category",
+     "subcategory",
+     "text"
+    ]
+   }
+  }
+ },
+ "response": {
+  "candidates": [
+   {
+    "content": {
+     "parts": [
+      {
+       "text": "{\"category\": \"energy\", \"subcategory\": \"wind\", \"text\": \"Escolhi a categoria energy e a subcategoria wind porque o projeto consiste explicitamente em um parque e\\u0033l\\u0033trico, conforme indicado no trecho 'comprising 7 no. wind turbines with a maximum tip height of 150m'.\"}",
+       "thoughtSignature": "EnsKeQFpFH0T5aCwVGTpLium2zX/jgApr73yh4Ezyd64Do15MAtSW8e/AEeGI/S52kIeH0fqVli27Zr5Qtmo4BfCMkEtcTltRAF3Gz/Tj0UWMh5ouV1/PpYdSTvxvXbgmtk9wKI118y+1xxvAdoXPjZZIS0PUao1hSAdwmc="
+      }
+     ],
+     "role": "model"
+    },
+    "finishReason": "STOP",
+    "index": 0
+   }
+  ],
+  "usageMetadata": {
+   "promptTokenCount": 131,
+   "candidatesTokenCount": 79,
+   "totalTokenCount": 210,
+   "promptTokensDetails": [
+    {
+     "modality": "TEXT",
+     "tokenCount": 131
+    }
+   ],
+   "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "Z3H_aorGKJj8vdIPmeD2kQM"
+ },
+ "_note": "chamada real na T00, 2026-11-19, gemini-3.5-flash-lite, HTTP 200"
+}

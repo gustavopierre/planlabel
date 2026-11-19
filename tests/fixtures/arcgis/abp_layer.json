@@ -1,0 +1,84 @@
+{
+ "name": "Cases",
+ "type": "Feature Layer",
+ "geometryType": "esriGeometryPolygon",
+ "objectIdField": "OBJECTID",
+ "maxRecordCount": 2000,
+ "fields": [
+  {
+   "name": "OBJECTID",
+   "type": "esriFieldTypeOID",
+   "alias": "OBJECTID"
+  },
+  {
+   "name": "ABPCASEID",
+   "type": "esriFieldTypeString",
+   "alias": "ACP Case Number",
+   "length": 100
+  },
+  {
+   "name": "DEVDESC",
+   "type": "esriFieldTypeString",
+   "alias": "Development Description",
+   "length": 4000
+  },
+  {
+   "name": "DEVADDRESS",
+   "type": "esriFieldTypeString",
+   "alias": "Development Address",
+   "length": 4000
+  },
+  {
+   "name": "LODGEDON",
+   "type": "esriFieldTypeDate",
+   "alias": "Date of Receipt of Case",
+   "length": 8
+  },
+  {
+   "name": "DECISION",
+   "type": "esriFieldTypeString",
+   "alias": "ACP Decision Status",
+   "length": 255
+  },
+  {
+   "name": "DECIDED_ON",
+   "type": "esriFieldTypeDate",
+   "alias": "Decision Date",
+   "length": 8
+  },
+  {
+   "name": "LINKABPWEB",
+   "type": "esriFieldTypeString",
+   "alias": "More Information",
+   "length": 255
+  },
+  {
+   "name": "PLANINGATY",
+   "type": "esriFieldTypeString",
+   "alias": "Planning Authority",
+   "length": 255
+  },
+  {
+   "name": "CATEGORY",
+   "type": "esriFieldTypeString",
+   "alias": "Category",
+   "length": 255
+  },
+  {
+   "name": "UPDATED_ON",
+   "type": "esriFieldTypeDate",
+   "alias": "Updated On",
+   "length": 8
+  },
+  {
+   "name": "Shape__Area",
+   "type": "esriFieldTypeDouble",
+   "alias": "Shape__Area"
+  },
+  {
+   "name": "Shape__Length",
+   "type": "esriFieldTypeDouble",
+   "alias": "Shape__Length"
+  }
+ ]
+}
