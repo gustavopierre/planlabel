@@ -162,5 +162,20 @@ class LabelingService:
     def skip(self, token: str) -> None:
         self._pop(token)
 
+    # -- modelos -----------------------------------------------------------------
+
+    def decide(self, token: str, slot: int) -> SlotResult:
+        """Decisão do modelo do slot para o pendente; uma chamada por token e slot."""
+        if slot not in self.deciders:
+            raise ValueError(f"slot inválido: {slot}")
+        pending = self._get(token)
+        with pending.lock:
+            current = pending.slots[slot]
+            if current.reason != "not_requested":
+                return current
+            result = self.deciders[slot].decide(pending.application)
+            pending.slots[slot] = result
+            return result
+
     def counts(self) -> Counts:
         return self.repo.counts()

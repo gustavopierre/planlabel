@@ -164,3 +164,79 @@ def test_S13_pending_limit_discards_oldest(tmp_db):
     with pytest.raises(UnknownToken):
         svc.skip(tokens[0])
     svc.skip(tokens[3])
+
+
+# -- T06b: serviço + decisores ------------------------------------------------------
+
+
+def test_S14_decide_never_writes_labels(tmp_db):
+    svc = service(tmp_db)
+    p = svc.next_application()
+    with patch.object(Repository, "save", side_effect=AssertionError("escreveu")) as save:
+        svc.decide(p.token, 1)
+        svc.decide(p.token, 2)
+    save.assert_not_called()
+    assert tmp_db.counts().total == 0
+
+
+def test_S15_decide_twice_calls_decider_once(tmp_db):
+    deciders = fake_deciders()
+    svc = service(tmp_db, deciders=deciders)
+    p = svc.next_application()
+    first = svc.decide(p.token, 1)
+    second = svc.decide(p.token, 1)
+    assert first == second
+    assert deciders[1].calls == 1
+
+
+def test_S16_confirm_stores_user_label_and_both_decisions_as_received(tmp_db):
+    import json
+    import sqlite3
+
+    deciders = fake_deciders(("wind", "energy"), ("hybrid", "not_energy"))
+    svc = service(tmp_db, deciders=deciders)
+    p = svc.next_application()
+    svc.decide(p.token, 1)
+    svc.decide(p.token, 2)
+    svc.confirm(p.token, Label(category="energy", subcategory="bess"))
+    with sqlite3.connect(tmp_db.path) as conn:
+        row = conn.execute(
+            "SELECT category, subcategory, m1_model, m1_decision, m2_model, m2_decision"
+            " FROM labeled_application"
+        ).fetchone()
+    assert row[:3] == ("energy", "bess", "gemini-decision-1")
+    assert json.loads(row[3])["subcategory"] == "wind"
+    assert row[4] == "typesafe/jev-1.14"
+    assert json.loads(row[5]) == {
+        "category": "not_energy",
+        "category_pct": 100,
+        "subcategory": "hybrid",
+        "subcategory_pct": 100,
+    }
+
+
+def test_S17_confirm_without_decisions_keeps_model_names(tmp_db):
+    import sqlite3
+
+    deciders = fake_deciders(answer1=None)
+    svc = service(tmp_db, deciders=deciders)
+    p = svc.next_application()
+    assert svc.decide(p.token, 1).reason == "error"
+    svc.confirm(p.token, WIND)  # slot 2 nunca chamado
+    with sqlite3.connect(tmp_db.path) as conn:
+        row = conn.execute(
+            "SELECT m1_model, m1_decision, m2_model, m2_decision FROM labeled_application"
+        ).fetchone()
+    assert row == ("gemini-decision-1", None, "typesafe/jev-1.14", None)
+
+
+def test_S18_decide_unknown_token(tmp_db):
+    with pytest.raises(UnknownToken):
+        service(tmp_db).decide("nope", 1)
+
+
+def test_S18_decide_invalid_slot(tmp_db):
+    svc = service(tmp_db)
+    p = svc.next_application()
+    with pytest.raises(ValueError):
+        svc.decide(p.token, 3)
