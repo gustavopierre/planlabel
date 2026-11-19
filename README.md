@@ -8,6 +8,7 @@ Web app minimalista para rotular, uma por vez, planning applications irlandesas
 
 | Documento | Conteúdo |
 |---|---|
+| [docs/HANDOFF.md](docs/HANDOFF.md) | **comece aqui** — estado atual, decisões, pendências e como continuar na VPS 2 |
 | [docs/PRD.md](docs/PRD.md) | problema, fluxo, requisitos (RF/RNF) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | arquitetura proposta e pontos **[DECIDIR]** |
 | [docs/SPEC.md](docs/SPEC.md) | fontes, schema SQLite, API, interface |
