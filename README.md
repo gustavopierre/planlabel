@@ -1,8 +1,10 @@
 # Plan Labeler — dados rotulados de Planning Applications da Irlanda
 
 Web app minimalista para rotular, uma por vez, planning applications irlandesas
-(An Bord Pleanála e ePlanning/LGMA) como **energia / não energia** e por **categoria**
-(hybrid, wind, solar, bess, leu), com as opções pré-preenchidas pelo modelo Google `gemini-decision-1` e sempre confirmadas pelo usuário. O resultado (SQLite) alimenta treino e fine-tuning de modelos de IA.
+(An Bord Pleanála e ePlanning/LGMA) por **subcategoria** (hybrid, wind, solar, bess, hydro,
+substation, energy support, leu, data centre, não energia, baixa energia) e **categoria**
+(energia / não energia), com a decisão de dois modelos (`gemini-decision-1` e `typesafe/jev-1.14`)
+e seus percentuais na tela, e a decisão final sempre do usuário. O resultado (SQLite) alimenta treino e fine-tuning de modelos de IA.
 
 **Status:** documentação pronta; implementação pendente. Teste previsto em https://planlabel-test.bundoran.tech (VPS 3) (ver [`GO_PROMPT.md`](GO_PROMPT.md)).
 

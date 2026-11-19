@@ -9,9 +9,13 @@ Os detalhes ficam nos documentos linkados.
 
 Web app minimalista (backend Python/FastAPI, SQLite, frontend HTML/CSS/JS puro) que mostra
 **uma** planning application irlandesa por vez (An Bord Pleanála + ePlanning, via ArcGIS),
-pré-preenche o rótulo com a sugestão do modelo Google **`gemini-decision-1`** e grava no
-banco **só depois que o usuário confirma**: energia True/False e, se energia, a categoria
-`hybrid | wind | solar | bess | leu`. O banco vira dataset para treino e fine-tuning de IA.
+mostra a decisão de dois modelos — **`gemini-decision-1`** (API Gemini) e
+**`typesafe/jev-1.14`** (OpenRouter) — com o percentual de cada subcategoria e categoria,
+oferece o botão **Dúvida** (`gemini-2.5-flash-lite`) e grava no banco **só depois que o
+usuário confirma**: a categoria e depois uma subcategoria dela (`energy`: `hybrid | wind |
+solar | bess | hydro | substation | energy_support | leu | data_centre`; `not_energy`:
+`not_energy | low_energy`), mais o link da aplicação.
+O banco vira dataset para treino e fine-tuning de IA.
 
 ## 2. Onde está tudo
 
@@ -31,7 +35,7 @@ Documentos, na ordem de leitura:
 ## 3. Estado atual
 
 - **Pronto:** documentação completa (PRD, arquitetura, SPEC, catálogo de testes, tarefas
-  T00–T12, GO prompt com critério C1–C15, runbook do OAuth).
+  T00–T12, GO prompt com critério C1–C16, histórias US-01..US-15 e definição de pronto, runbook do OAuth).
 - **Não iniciado:** **nenhuma linha de código**. Nenhuma tarefa do `GO_PROMPT.md` começou;
   não existe `pyproject.toml` nem a pasta `planlabel/`.
 - **Verificado:** a camada An Bord Pleanála (`services-eu1.arcgis.com`, FeatureServer/3)
@@ -48,8 +52,8 @@ Documentos, na ordem de leitura:
 2. Busca aleatória por `OBJECTID` (lista de IDs em cache) → um registro por vez; descarta
    o que já está no banco.
 3. Chave única `(source, planning_authority, application_number)`: `ApplicationNumber` se repete entre conselhos.
-4. **Nada é gravado sem a confirmação do usuário.** A sugestão do `gemini-decision-1` só
-   pré-preenche; a única rota que escreve no banco é `POST /api/labels`. Essa regra vale
+4. **Nada é gravado sem a confirmação do usuário.** As decisões dos modelos só sugerem;
+   a única rota que grava rótulos (`labeled_application`) é `POST /api/labels`; o contador de uso dos modelos (`model_usage`) é a única outra escrita. Essa regra vale
    na API e também nas `CHECK` constraints do SQLite.
 5. O registro em exibição fica na memória do servidor (com token); o cliente não forja dados.
 6. Teste na VPS 3 em `planlabel-test.bundoran.tech`, atrás do Caddy compartilhado
@@ -62,8 +66,8 @@ Documentos, na ordem de leitura:
 
 | Pendência | Bloqueia | Como |
 |---|---|---|
-| Responder os **[DECIDIR]**: definições das categorias no prompt (solar + bateria conta como `hybrid`? data centre entra em `leu`?), gravar a sugestão no banco (RF-19), pesos do sorteio, tradutor, pulados | Texto final do prompt (SPEC §4.2) e schema | Responder na sessão; atualizar SPEC/ARCHITECTURE |
-| `GEMINI_API_KEY` | T00 (modelo), L-03, uso real da sugestão | Criar no Google AI Studio; guardar só no `.env` da VPS |
+| `GEMINI_API_KEY` | T00 (modelos), L-03, L-05, slot 1 e Dúvida | Criar no Google AI Studio; guardar só no `.env` da VPS |
+| `OPENROUTER_API_KEY` | T00 (jev), L-04, slot 2 | Criar em openrouter.ai (Keys); guardar só no `.env` da VPS |
 | Credencial OAuth do Google | T12 (deploy de teste na VPS 3) | [runbook google-oauth-setup](runbooks/google-oauth-setup.md) |
 | Destino do backup do SQLite | T12 | Decidir; virará `runbooks/backup-sqlite.md` |
 

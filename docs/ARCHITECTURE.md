@@ -11,7 +11,9 @@ dono do produto antes de o `GO_PROMPT.md` ser executado.
 │ app.js       │ ◄─────────── │                │                                                        │
 │ style.css    │              │                ├──► Repository (sqlite3) ──► data/labels.sqlite3        │
 │ (vanilla)    │              │                ├──► Translator (plugável) ─────────────────────────────│──► serviço de tradução
-│              │              │                └──► Suggester (gemini-decision-1) ────────────────────│──► API Gemini
+│              │              │                ├──► Decider slot 1 (gemini-decision-1) ───────────────│──► API Gemini
+│              │              │                ├──► Decider slot 2 (typesafe/jev-1.14) ───────────────│──► OpenRouter
+│              │              │                └──► Advisor / Dúvida (gemini-2.5-flash-lite) ─────────│──► API Gemini
 └──────────────┘              └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -42,12 +44,13 @@ O ArcGIS permite pedir **só os IDs** de uma camada (`returnIdsOnly=true`; testa
 
 1. Na primeira necessidade, cada fonte baixa e guarda **em memória** a lista de
    `OBJECTID`s (cache com TTL de 24 h).
-2. Para servir um registro: sorteia a fonte (peso proporcional ao nº de IDs **[DECIDIR]**:
-   ou uniforme entre as três fontes), sorteia um `OBJECTID`, busca **só esse** registro
+2. Para servir um registro: usa **uma fonte por vez, alternando** (`abp → epl_1 → epl_0`),
+   com uma só rotação no servidor para todos os usuários (decisão do dono, 2026-11-19);
+   na fonte da vez sorteia um `OBJECTID` e busca **só esse** registro
    (`objectIds=<id>&outFields=...&returnGeometry=false`).
 3. Valida (número e descrição não vazios) e checa no banco pela chave natural
    (`source`, `planning_authority`, `application_number`). Se já existir ou for inválido,
-   marca o ID como "visto nesta execução" e repete (até N = 25 tentativas).
+   marca o ID como "visto nesta execução" e repete (até 10 tentativas na fonte; depois passa à próxima).
 
 Vantagens: uma requisição pequena por registro, aleatoriedade real, nada gravado antes
 do rótulo. Alternativa rejeitada: paginar por offset (custa mais e enviesa para os
@@ -59,54 +62,64 @@ Fica **no servidor, em memória**, numa "sessão de rotulagem" identificada por 
 servidor grava os dados **que ele mesmo buscou** — o cliente não consegue alterar número,
 fonte ou descrição. Pendências não vão para o banco (RF-10).
 
-### 2.6 Tradução — interface `Translator` plugável **[DECIDIR]**
+### 2.6 Tradução — interface `Translator` plugável
 | Opção | Custo | Qualidade | Observação |
 |---|---|---|---|
 | `deep-translator` (Google Translate não oficial) | grátis | boa | sem chave; pode sofrer limite de uso |
 | DeepL API Free | grátis até 500 mil caracteres/mês | muito boa | precisa de chave |
 | Claude API (`claude-haiku-5-5`) | baixo | muito boa, entende jargão de planning | precisa de chave |
 
-Proposta: padrão `deep-translator`, configurável por `PLANLABEL_TRANSLATOR`. Traduções
+Decisão do dono (2026-11-19): `deep-translator` (Google Translate não oficial, sem chave),
+configurável por `PLANLABEL_TRANSLATOR`. Não usar `gemini-2.5-flash-lite` para traduzir: ele
+dividiria a cota diária com o botão Dúvida. Traduções
 são cacheadas em memória (LRU) e **não** são gravadas no dataset.
 
-### 2.6.1 Pré-preenchimento com `gemini-decision-1` (Suggester)
-- **Papel:** só sugerir. O modelo nunca grava; a única porta de escrita no banco continua
-  sendo `POST /api/labels`, disparado pelo clique do usuário em Confirmar.
+### 2.6.1 Dois modelos decisores (slots 1 e 2) e o conselheiro (Dúvida)
+- **Papel:** só sugerir. Os modelos nunca gravam rótulo; a única porta de escrita em
+  `labeled_application` continua sendo `POST /api/labels`, disparado pelo clique do usuário.
+- **Slots:** slot 1 = `gemini-decision-1` (API Gemini), slot 2 = `typesafe/jev-1.14`
+  (OpenRouter, versão fixa). Cada slot é um `Decider` escolhido por configuração
+  (`PLANLABEL_MODEL{1,2}_PROVIDER`/`_ID`); trocar um modelo não muda o código, e o banco
+  grava o nome do modelo de cada slot em `m1_model`/`m2_model`, sempre preenchidos.
+- **Uma chamada, dois julgamentos:** cada modelo devolve, numa chamada, o percentual das 11
+  subcategorias e depois o das 2 categorias (saída JSON estruturada, nessa ordem). A maior de
+  cada uma é escolhida de forma independente. Se elas se contradizem, a tela avisa e o banco
+  grava como veio: a contradição marca casos de fronteira e é informação útil para o
+  dataset. Duas chamadas separadas dariam julgamentos mais independentes, mas gastariam o
+  dobro da cota e da espera; foi descartado.
 - **Fluxo assíncrono:** `GET /api/next` devolve a aplicação imediatamente; o frontend chama
-  em seguida `POST /api/suggest {token}`. Assim a latência do modelo não atrasa a exibição;
-  enquanto espera, a tela mostra "sugerindo…" e o usuário já pode escolher manualmente
-  (uma escolha manual feita antes de a sugestão chegar **não** é sobrescrita).
-- **Lado do servidor:** a sugestão fica guardada no pendente (junto do token). Se RF-19 for
-  aprovado, o servidor grava a sugestão que **ele** recebeu do modelo — o cliente não
-  consegue forjá-la.
-- **Chamada:** REST da API Gemini (`generativelanguage.googleapis.com`, `generateContent`)
-  via `httpx`, com saída estruturada em JSON (`responseMimeType: application/json` +
-  `responseSchema`) e `temperature: 0`. Usar `httpx` em vez do SDK mantém o mock simples
-  com `respx`, igual às fontes ArcGIS.
-- **Validação:** a resposta passa pelo mesmo `Label` do domínio; JSON inválido, categoria
-  fora da lista ou `energy=true` sem categoria ⇒ "sem sugestão".
-- **Custo/latência:** uma chamada por aplicação exibida, timeout 10 s, sem retry (o usuário
-  está esperando; melhor rotular manualmente). Cache por hash da descrição.
-- **Configuração:** `PLANLABEL_SUGGESTER=gemini|none`, `PLANLABEL_SUGGESTER_MODEL=gemini-decision-1`,
-  chave em `GEMINI_API_KEY` (só no ambiente). O nome do modelo é confirmado na T00
-  (`GET /v1beta/models`) — modelo do Google acessado pela API Gemini (confirmado pelo dono do produto); a T00 só verifica o ID exato e o acesso com a chave.
-- **[DECIDIR]** Definições das categorias enviadas ao modelo (SPEC §4.3) — são também o
-  guia de rotulagem humana; precisam ser as suas.
+  `POST /api/decide` para os dois slots em paralelo. A latência de um modelo não atrasa o
+  outro nem a exibição. Escolha manual feita antes não é sobrescrita.
+- **Lado do servidor:** as decisões ficam no pendente (junto do token) e são gravadas com o
+  rótulo — o cliente não consegue forjá-las.
+- **Chamadas:** REST via `httpx` (Gemini `generateContent`; OpenRouter `chat/completions` com
+  `response_format: json_schema`), `temperature: 0`, timeout 10 s, sem retry, cache por hash
+  da descrição. `httpx` em vez dos SDKs mantém o mock simples com `respx`.
+- **Falha:** qualquer erro deixa o painel daquele modelo sem sugestão; nada bloqueia.
+- **Conselheiro (Dúvida):** `gemini-2.5-flash-lite` com a mesma `GEMINI_API_KEY`, chamado só
+  quando o usuário clica. Um limitador próprio (janela de 60 s em memória + contador diário
+  no SQLite) aplica 15 req/min, 25 000 tokens/min e 1 000 req/dia; o botão fica desabilitado
+  enquanto algum limite estiver atingido e volta sozinho. A opinião não é gravada.
+- **Cotas:** tabela `model_usage` (dia, modelo, requisições, tokens) alimenta os contadores
+  da tela; o dia segue o fuso do provedor (Pacífico para o Gemini, UTC para o OpenRouter).
+- **Taxonomia:** definida pelo dono em 2026-11-19 (SPEC §1.1); é o guia humano e o prompt.
 
-### 2.7 Esquema de dados — campos além dos pedidos **[DECIDIR]**
-O pedido lista: número, fonte, descrição, energia, categoria. Proponho acrescentar:
+### 2.7 Esquema de dados — campos além dos pedidos
+O pedido lista: número, fonte, descrição, categoria e subcategoria. Acrescentados:
 - `planning_authority` — **necessário**: `ApplicationNumber` se repete entre conselhos.
 - `source_object_id` — rastreabilidade até o registro original.
 - `labeled_at` (UTC) — auditoria e divisão treino/validação por tempo.
-- `suggested_energy`, `suggested_category`, `suggestion_model` (nullable) — a sugestão do
-  `gemini-decision-1` no momento do rótulo. Permite medir a concordância modelo × humano e
-  é um sinal útil para o fine-tuning (exemplos em que o modelo errou).
+- `application_url` — link da página pública da aplicação (pedido do dono em 2026-11-19).
+- `m1_model`/`m1_decision` e `m2_model`/`m2_decision` — o nome do modelo de cada slot (sempre
+  preenchido) e, num
+  único campo de texto (JSON), a categoria e a subcategoria de maior percentual com os seus
+  percentuais (decidido pelo dono em 2026-11-19). Permite medir a concordância de cada modelo com o
+  humano, comparar os modelos e trocar modelos em versões futuras sem perder a referência.
 
 ### 2.8 Interpretação do "Cancelar"
 Leitura adotada: Cancelar → diálogo **Encerrar | Próxima**. "Próxima" pula o registro
 (sem gravar); "Encerrar" termina a sessão e mostra a tela final. Registros pulados podem
-reaparecer numa execução futura (não são gravados, por RF-10). **[DECIDIR]** Se quiser
-que pulados nunca voltem, é preciso uma tabela separada `skipped`, fora do dataset.
+reaparecer numa execução futura (não são gravados, por RF-10) — confirmado pelo dono em 2026-11-19.
 
 ## 3. Estrutura de pastas
 
@@ -114,14 +127,20 @@ que pulados nunca voltem, é preciso uma tabela separada `skipped`, fora do data
 planlabel/
   __init__.py  __main__.py   # python -m planlabel
   config.py                  # Settings via env (PLANLABEL_*)
-  models.py                  # Application, Label, Category (Enum) — Pydantic
+  models.py                  # Application, Label, Category, Subcategory, Decision — Pydantic
   sources/
     base.py                  # Protocol Source
     arcgis.py                # ArcGISSource (httpx) + mapeamento de campos
-    registry.py              # sorteio entre fontes, fallback
+    registry.py              # rodízio entre fontes, fallback
   repository.py              # sqlite3: schema, exists(), save(), counts()
   translator.py              # Protocol Translator + implementações
-  suggester.py               # Protocol Suggester, GeminiSuggester, NoneSuggester, prompt
+  deciders/
+    base.py                  # Protocol Decider, validação das distribuições
+    prompt.py                # prompt gerado da taxonomia
+    gemini.py                # GeminiDecider (slot 1)
+    openrouter.py            # OpenRouterDecider (slot 2)
+  advisor.py                 # Protocol Advisor, GeminiAdvisor, NoneAdvisor, limitador RPM/TPM/RPD
+  usage.py                   # cotas: dia por fuso, janelas de 60 s
   service.py                 # LabelingService (regras de negócio)
   api.py                     # FastAPI app + rotas
   static/ index.html app.js style.css
@@ -206,7 +225,7 @@ Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria
   (serviços `planlabel` e `planlabel-oauth2`, rede `edge` externa, sem `ports:`,
   volume `planlabel_data:/app/data`, `env_file: .env`, `restart: unless-stopped`,
   healthcheck em `/healthz`), `.env.example` (só nomes das variáveis, sem valores).
-- **Segredos:** `GEMINI_API_KEY`, `OAUTH2_PROXY_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`
+- **Segredos:** `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `OAUTH2_PROXY_CLIENT_SECRET`, `OAUTH2_PROXY_COOKIE_SECRET`
   (e chaves de tradução, se houver) só em `~/planlabel/.env` na VPS, modo 600, fora do git;
   `emails.txt` também fora do git.
 - **Dados:** SQLite no volume `planlabel_data`. Backup diário fora do servidor
@@ -214,4 +233,4 @@ Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria
 - **Divisão de trabalho:** o deploy do app é deste projeto; a alteração no `Caddyfile` e nas
   fichas da VPS 3 é registrada também no projeto `vps_infra` (e copiada para o Hermes).
 - **Vantagem:** a VPS não tem o bloqueio de rede do container de desenvolvimento; a T00
-  (esquemas ePlanning e modelo `gemini-decision-1`) pode ser conferida a partir dela.
+  (esquemas ePlanning e IDs dos modelos) pode ser conferida a partir dela.
