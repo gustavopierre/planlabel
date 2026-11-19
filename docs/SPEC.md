@@ -199,7 +199,7 @@ class Application(BaseModel):
     application_number: str   # não vazio
     planning_authority: str   # pode ser ""
     description: str          # não vazio
-    application_url: str      # pode ser ""; se preenchido, começa com https://
+    application_url: str      # pode ser ""; se preenchido, começa com http:// ou https://
 
 class Label(BaseModel):
     category: Category
