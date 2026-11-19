@@ -79,7 +79,7 @@ tradução funcionou pela reserva MyMemory (o Google Translate não oficial bloq
 
 ```bash
 pytest                                      # unit + integração + E2E (sem rede)
-pytest --cov=planlabel --cov-fail-under=90  # cobertura (95 % em 2026-11-19)
+pytest --cov=planlabel --cov-fail-under=90  # cobertura (95 % e 190 testes em 2026-11-19)
 pytest -m live                              # contra as fontes e os modelos reais (gasta cota)
 ruff check . && ruff format --check .
 ```
