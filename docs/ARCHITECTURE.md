@@ -13,7 +13,7 @@ dono do produto antes de o `GO_PROMPT.md` ser executado.
 │ (vanilla)    │              │                ├──► Translator (plugável) ─────────────────────────────│──► serviço de tradução
 │              │              │                ├──► Decider slot 1 (gemini-decision-1) ───────────────│──► API Gemini
 │              │              │                ├──► Decider slot 2 (typesafe/jev-1.14) ───────────────│──► OpenRouter
-│              │              │                └──► Advisor / Dúvida (gemini-2.5-flash-lite) ─────────│──► API Gemini
+│              │              │                └──► Advisor / Dúvida (gemini-3.5-flash-lite) ─────────│──► API Gemini
 └──────────────┘              └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -44,7 +44,7 @@ O ArcGIS permite pedir **só os IDs** de uma camada (`returnIdsOnly=true`; testa
 
 1. Na primeira necessidade, cada fonte baixa e guarda **em memória** a lista de
    `OBJECTID`s (cache com TTL de 24 h).
-2. Para servir um registro: usa **uma fonte por vez, alternando** (`abp → epl_1 → epl_0`),
+2. Para servir um registro: usa **uma fonte por vez, alternando** (`abp → eplanning`, só a camada 0 do ePlanning),
    com uma só rotação no servidor para todos os usuários (decisão do dono, 2026-11-19);
    na fonte da vez sorteia um `OBJECTID` e busca **só esse** registro
    (`objectIds=<id>&outFields=...&returnGeometry=false`).
@@ -70,7 +70,7 @@ fonte ou descrição. Pendências não vão para o banco (RF-10).
 | Claude API (`claude-haiku-5-5`) | baixo | muito boa, entende jargão de planning | precisa de chave |
 
 Decisão do dono (2026-11-19): `deep-translator` (Google Translate não oficial, sem chave),
-configurável por `PLANLABEL_TRANSLATOR`. Não usar `gemini-2.5-flash-lite` para traduzir: ele
+configurável por `PLANLABEL_TRANSLATOR`. Não usar `gemini-3.5-flash-lite` para traduzir: ele
 dividiria a cota diária com o botão Dúvida. Traduções
 são cacheadas em memória (LRU) e **não** são gravadas no dataset.
 
@@ -96,7 +96,7 @@ são cacheadas em memória (LRU) e **não** são gravadas no dataset.
   `response_format: json_schema`), `temperature: 0`, timeout 10 s, sem retry, cache por hash
   da descrição. `httpx` em vez dos SDKs mantém o mock simples com `respx`.
 - **Falha:** qualquer erro deixa o painel daquele modelo sem sugestão; nada bloqueia.
-- **Conselheiro (Dúvida):** `gemini-2.5-flash-lite` com a mesma `GEMINI_API_KEY`, chamado só
+- **Conselheiro (Dúvida):** `gemini-3.5-flash-lite` com a mesma `GEMINI_API_KEY`, chamado só
   quando o usuário clica. Um limitador próprio (janela de 60 s em memória + contador diário
   no SQLite) aplica 15 req/min, 25 000 tokens/min e 1 000 req/dia; o botão fica desabilitado
   enquanto algum limite estiver atingido e volta sozinho. A opinião não é gravada.

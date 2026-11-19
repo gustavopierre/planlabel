@@ -149,6 +149,7 @@ O `uv` instala a versão certa do Python sem depender da versão do Ubuntu.
     PLANLABEL_MODEL1_ID=gemini-decision-1
     PLANLABEL_MODEL2_PROVIDER=openrouter
     PLANLABEL_MODEL2_ID=typesafe/jev-1.14
+    PLANLABEL_ADVISOR_ID=gemini-3.5-flash-lite
     ```
 
     As chaves e os dois modelos são obrigatórios (o app não sobe sem os modelos). As outras

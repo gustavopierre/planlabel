@@ -16,7 +16,7 @@ Referências: [PRD](PRD.md) · [Arquitetura](ARCHITECTURE.md) · [TDD](TDD.md) �
 - **Decisão** — a resposta de um modelo decisor: as duas distribuições, a subcategoria de
   maior percentual e a categoria de maior percentual. As duas escolhas são **independentes** e
   podem se contradizer (ex.: wind 60 % e not_energy 55 %); a contradição é mostrada, não corrigida.
-- **Conselheiro** — o modelo do botão **Dúvida** (`gemini-2.5-flash-lite`), que dá uma
+- **Conselheiro** — o modelo do botão **Dúvida** (`gemini-3.5-flash-lite`), que dá uma
   opinião em texto quando o usuário pede.
 
 ### 1.1 Taxonomia (guia de rotulagem)
@@ -49,11 +49,14 @@ em qualquer potência); outras fontes (biomassa, diesel etc.) são sempre `low_e
 
 ## 2. Fontes
 
-| `source` | URL base (`/query` acrescentado pelo cliente) | número | descrição | autoridade | link |
-|---|---|---|---|---|---|
-| `abp` | `https://services-eu1.arcgis.com/o56BSnENmD5mYs3j/ArcGIS/rest/services/Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` | `PLANINGATY` | `LINKABPWEB` |
-| `epl_1` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
-| `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
+| `source` | camada (`source_layer`) | URL base (`/query` acrescentado pelo cliente) | número | descrição | autoridade | link |
+|---|---|---|---|---|---|---|
+| `abp` | `abp_3` | `https://services-eu1.arcgis.com/o56BSnENmD5mYs3j/ArcGIS/rest/services/Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` | `PLANINGATY` | `LINKABPWEB` |
+| `eplanning` | `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
+
+`source` é a **fonte** (ABP ou ePlanning) e entra na chave de duplicata; `source_layer` é a
+camada de onde o registro veio, só para rastreio. A camada 1 do ePlanning
+(`.../FeatureServer/1`, `epl_1`, polígonos) **não** é usada (decisão abaixo).
 
 **Verificado na T00 (2026-11-19, VPS 2)** — esquemas em `tests/fixtures/arcgis/*_layer.json`:
 - `abp` — "Cases", polígonos, 27 310 registros, `OBJECTID` como OID, `maxRecordCount` 2000.
@@ -62,8 +65,7 @@ em qualquer potência); outras fontes (biomassa, diesel etc.) são sempre `low_e
 - `epl_0` — "Planning Application Points" (pontos), 512 860 registros. Tem também campos
   pessoais do requerente (`ApplicantForename`, `ApplicantSurname`, `ApplicantAddress`):
   **nunca** pedir esses campos em `outFields`.
-- **`epl_0` e `epl_1` são as mesmas aplicações** em geometrias diferentes (5 de 5 aplicações
-  de `epl_1` testadas existem em `epl_0`). Ver [DECIDIR] abaixo.
+- **As camadas 0 e 1 são quase as mesmas aplicações** em geometrias diferentes (tabela abaixo).
 - `LinkAppDetails` (ePlanning): 63 913 de 512 860 vazios; 235 788 começam com `http://`
   (sem s); o domínio varia por conselho (ex.: `eplanning.ie/CarlowCC/...`,
   `planning.agileapplications.ie/corkcoco/...`). Link aceito se começar com `http://` ou `https://`.
@@ -74,10 +76,27 @@ O mapeamento fica num dicionário `FIELD_MAP` em `planlabel/sources/arcgis.py`; 
 nome de campo aparece em outro lugar do código. Sem link → `application_url` vazio (`''`),
 sem bloquear a rotulagem.
 
-**[DECIDIR] Camadas duplicadas do ePlanning.** Proposta: usar só `epl_0` (pontos; tem 236
-registros a mais) e o rodízio vira `abp → epl_0 → abp …`. Alternativa: manter as duas e
-deduplicar o ePlanning por `(planning_authority, application_number)` sem olhar a camada —
-mas o ePlanning apareceria duas vezes mais que o ABP no rodízio.
+**Decisão: só a camada 0 do ePlanning** (2026-11-19). Comparação completa feita na T00
+(conselho + número normalizados, todas as linhas das duas camadas):
+
+| | camada 0 (pontos) | camada 1 (polígonos) |
+|---|---|---|
+| registros | 512 860 | 512 624 |
+| aplicações distintas | 512 332 | 511 952 |
+| repetidas dentro da própria camada | 400 | 494 |
+| só nesta camada | **391** | **11** |
+| nas duas | 511 941 | 511 941 |
+
+O dono pediu que uma aplicação já no banco nunca seja rotulada de novo dentro da mesma fonte,
+mesmo vinda de outra camada. Por isso a chave de duplicata usa a fonte (`eplanning`), não a
+camada: se a camada 1 for acrescentada no futuro, nada se repete. A comparação é dentro de
+cada fonte (ABP com ABP, ePlanning com ePlanning), nunca entre ABP e ePlanning.
+
+**A chave inclui o conselho, não só o número:** 19 932 números de aplicação existem em mais
+de um conselho (ex.: `2360178` aparece em 19 conselhos). Os formatos variam por conselho
+(`99/9999` em Cork County, `A99A/9999` em Fingal e Dún Laoghaire, `9999/99` em Dublin City,
+`99999` ou `9999999` em vários). Não há variações só de maiúsculas ou espaços internos; a
+normalização é `strip()` + espaços internos colapsados.
 
 ### 2.1 Chamadas ao ArcGIS
 
@@ -91,7 +110,7 @@ mas o ePlanning apareceria duas vezes mais que o ABP no rodízio.
 - **Paginação da lista de IDs:** o ePlanning devolve no máximo 400 000 IDs por resposta, fora de
   ordem, com `exceededTransferLimit: true`. Enquanto vier esse sinal, repetir com
   `where=OBJECTID > <maior ID recebido>` (começando em `OBJECTID > 0`). Verificado na T00: a
-  segunda página trouxe os 112 860 IDs restantes de `epl_0`.
+  segunda página trouxe os 112 860 IDs restantes da camada 0.
 - Cache da lista de IDs: em memória, TTL 24 h (`PLANLABEL_IDS_TTL_S`).
 - Normalização: `strip()` em todos os textos; espaços internos múltiplos colapsados na descrição.
 
@@ -102,7 +121,8 @@ PRAGMA journal_mode = WAL;
 
 CREATE TABLE IF NOT EXISTS labeled_application (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    source              TEXT    NOT NULL CHECK (source IN ('abp','epl_0','epl_1')),
+    source              TEXT    NOT NULL CHECK (source IN ('abp','eplanning')),
+    source_layer        TEXT    NOT NULL CHECK (source_layer IN ('abp_3','epl_0','epl_1')),
     application_number  TEXT    NOT NULL CHECK (length(trim(application_number)) > 0),
     planning_authority  TEXT    NOT NULL DEFAULT '',
     source_object_id    INTEGER NOT NULL,
@@ -113,7 +133,8 @@ CREATE TABLE IF NOT EXISTS labeled_application (
     subcategory         TEXT    NOT NULL,
     labeled_at          TEXT    NOT NULL,                 -- ISO-8601 UTC
     -- decisão de cada modelo no momento do rótulo [RF-19]
-    -- mN_model:    nome do modelo do slot (ex.: 'gemini-decision-1', 'typesafe/jev-1.14'); sempre preenchido
+    -- mN_model:    nome do modelo; sempre preenchido. Se a API devolve o nome na resposta, grava esse
+    --              (ex.: 'typesafe/jev-1.14-20261014'); senão, o nome do .env (ex.: 'gemini-decision-1')
     -- mN_decision: texto JSON com as escolhas de maior percentual, sem checagem de coerência:
     --              {"category":"energy","category_pct":91,"subcategory":"wind","subcategory_pct":82}
     --              NULL (em branco) quando o modelo não entregou decisão, por qualquer motivo
@@ -172,7 +193,8 @@ class Subcategory(StrEnum):          # ordem canônica do §1.1
 CATEGORY_OF: dict[Subcategory, Category]   # tabela do §1.1; única fonte do mapeamento
 
 class Application(BaseModel):
-    source: Literal["abp","epl_0","epl_1"]
+    source: Literal["abp","eplanning"]
+    source_layer: Literal["abp_3","epl_0","epl_1"]
     source_object_id: int
     application_number: str   # não vazio
     planning_authority: str   # pode ser ""
@@ -198,7 +220,7 @@ class Decision(BaseModel):
 
 class SlotResult(BaseModel):
     slot: Literal[1, 2]
-    model: str                            # nome do modelo do slot; sempre preenchido
+    model: str                            # nome do modelo: o da resposta da API, se houver; senão o do .env
     decision: Decision | None
     reason: Literal["ok","error","rate_limited","quota_exhausted","no_key","not_requested"]
 ```
@@ -211,7 +233,7 @@ Contradição entre as duas **não** invalida.
 ### 4.1 LabelingService
 
 - `next_application() -> Pending` — usa **uma fonte por vez, alternando** na ordem fixa
-  `abp → epl_1 → epl_0 → abp …` (decisão do dono, 2026-11-19). A posição da rotação é
+  `abp → eplanning → abp …` (decisão do dono, 2026-11-19). A posição da rotação é
   **única no servidor**, compartilhada por todos os usuários e abas, e protegida por lock.
   Na fonte da vez: sorteia um ID não visto, busca, valida, verifica `exists()`; repete até
   `MAX_ATTEMPTS_PER_SOURCE = 10`. Se a fonte falhar (`SourceError`) ou esgotar as tentativas,
@@ -287,7 +309,7 @@ Na T00: 386 ms, 647 tokens de entrada por aplicação. O modelo **não** aceita 
 corpo `{"model": "typesafe/jev-1.14", "state": <descrição>, "questions": …}` (mesmas perguntas;
 o texto vai em `state`, não em `input`). Resposta: `answers.<pergunta>.{choice, probabilities,
 confidence}` (resposta `refusal` → sem decisão), `model` (snapshot resolvido, ex.:
-`typesafe/jev-1.14-20261014`), `usage.{input_tokens, output_tokens, cost}`. Na T00: 352 ms,
+`typesafe/jev-1.14-20261014`, gravado em `m2_model` — decisão do dono, 2026-11-19), `usage.{input_tokens, output_tokens, cost}`. Na T00: 352 ms,
 946 tokens, US$ 0,00004 por aplicação. O modelo **não** aceita `chat/completions`. Nunca usar o
 alias `~typesafe/jev-latest`. Nenhum dado do dono vai nos campos opcionais `user`, `session_id`
 ou `trace`, nem em headers opcionais do OpenRouter.
@@ -317,9 +339,9 @@ AdvisorStatus = {model: str | None, available: bool,
                  rpd_used: int, rpd_limit: int}
 ```
 
-- `GeminiAdvisor`: modelo `PLANLABEL_ADVISOR_ID` (`gemini-2.5-flash-lite`), **mesma**
+- `GeminiAdvisor`: modelo `PLANLABEL_ADVISOR_ID` (`gemini-3.5-flash-lite`), **mesma**
   `GEMINI_API_KEY`, endpoint `generateContent`. Na T00, `gemini-2.5-flash-lite` respondeu 404 ("no longer
-  available to new users"); `gemini-3.5-flash-lite` funcionou (1,2 s, ~210 tokens) **[DECIDIR]**. Prompt: a taxonomia do §1.1 + "explique
+  available to new users"); o dono escolheu `gemini-3.5-flash-lite`, que funcionou (1,2 s, ~210 tokens). Prompt: a taxonomia do §1.1 + "explique
   em português, em até 80 palavras, qual categoria e qual subcategoria você escolheria e por quê, citando o
   trecho da descrição que decide". Saída JSON `{category, subcategory, text}`.
 - Limites (configuráveis): **15 requisições/min**, **25 000 tokens/min**, **1 000 requisições/dia**.
@@ -340,7 +362,7 @@ AdvisorStatus = {model: str | None, available: bool,
 |---|---|---|---|
 | slot 1 `gemini-decision-1` | requisições | **200/min** e **10 000/dia** (free tier, dados oficiais do dono em 2026-11-19) | `America/Los_Angeles` |
 | slot 2 `typesafe/jev-1.14` | requisições e tokens | sem limite padrão (`0` = só contar) | `UTC` |
-| conselheiro `gemini-2.5-flash-lite` | requisições e tokens | 15/min, 25 000 tokens/min, 1 000/dia | `America/Los_Angeles` |
+| conselheiro `gemini-3.5-flash-lite` | requisições e tokens | 15/min, 25 000 tokens/min, 1 000/dia (valores do 2.5, provisórios até o dono conferir os do 3.5 no AI Studio) | `America/Los_Angeles` |
 
 - Cada requisição HTTP **enviada** soma 1 em `model_usage` antes do envio, qualquer que seja
   o resultado; os tokens da resposta são somados depois. Resposta de cache não conta.
@@ -398,7 +420,7 @@ Sua decisão
                ( ) hybrid 1 ( ) wind 2 ( ) solar 3 ( ) bess 4 ( ) hydro 5
                ( ) substation 6 ( ) energy support 7 ( ) leu 8 ( ) data centre 9
                                          [Dúvida]  [Cancelar]  [Confirmar]
- Opinião do gemini-2.5-flash-lite: "…"                     ← só depois de clicar em Dúvida
+ Opinião do gemini-3.5-flash-lite: "…"                     ← só depois de clicar em Dúvida
 ```
 
 - Em cada painel de modelo: a categoria de maior percentual e a subcategoria de maior
@@ -458,7 +480,7 @@ não fazem nada) · `D` dúvida · `T` traduzir · `Enter` confirmar · `Esc` ca
 | `PLANLABEL_MODEL2_PROVIDER` / `PLANLABEL_MODEL2_ID` | **obrigatório, sem padrão** (hoje: `openrouter` / `typesafe/jev-1.14`) |
 | `PLANLABEL_MODEL2_RPM` / `PLANLABEL_MODEL2_RPD` | `0` / `0` (só contar) |
 | `PLANLABEL_DECIDER_TIMEOUT_S` | `10` |
-| `PLANLABEL_ADVISOR_ID` | `gemini-2.5-flash-lite` |
+| `PLANLABEL_ADVISOR_ID` | **obrigatório, sem padrão** (hoje: `gemini-3.5-flash-lite`) |
 | `PLANLABEL_ADVISOR_RPM` / `PLANLABEL_ADVISOR_TPM` / `PLANLABEL_ADVISOR_RPD` | `15` / `25000` / `1000` |
 
 Provedores aceitos em `PLANLABEL_MODEL{1,2}_PROVIDER`: `gemini`, `openrouter`. Os dois slots

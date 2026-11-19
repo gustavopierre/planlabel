@@ -11,7 +11,7 @@ frontend HTML/CSS/JS puro e minimalista) que apresenta uma planning application 
 por vez, vinda de três camadas ArcGIS, mostra a decisão de dois modelos (slot 1
 `gemini-decision-1` via API Gemini, slot 2 `typesafe/jev-1.14` via OpenRouter) com o
 percentual de cada subcategoria e categoria, oferece o botão **Dúvida** (opinião do
-`gemini-2.5-flash-lite`, com limites de uso) e grava no banco apenas rótulos **confirmados
+`gemini-3.5-flash-lite`, com limites de uso) e grava no banco apenas rótulos **confirmados
 pelo usuário**: a categoria `energy|not_energy` e uma subcategoria dela (SPEC §1.1), mais o link da aplicação.
 As sugestões dos modelos, sozinhas, nunca gravam nada.
 
@@ -47,7 +47,7 @@ opção proposta como padrão, a menos que o arquivo registre outra decisão.
 - [ ] **C7** — `python -m planlabel` sobe em `127.0.0.1:8000`; com rede liberada, `GET /api/next`
       devolve uma aplicação real de pelo menos uma fonte (registrar resultado no README;
       se a rede do ambiente bloquear um host, registrar qual e seguir).
-- [ ] **C8** — T00 concluída: esquemas reais e nomes dos três modelos (`gemini-decision-1`, `typesafe/jev-1.14`, `gemini-2.5-flash-lite`), ou o bloqueio, documentados na SPEC e fixtures gravadas.
+- [ ] **C8** — T00 concluída: esquemas reais e nomes dos três modelos (`gemini-decision-1`, `typesafe/jev-1.14`, `gemini-3.5-flash-lite`), ou o bloqueio, documentados na SPEC e fixtures gravadas.
 - [ ] **C9** — `README.md` com: instalação, execução, testes, variáveis de ambiente,
       e consulta SQL de exportação do dataset.
 - [ ] **C10** — Interface minimalista conforme SPEC §6: uma tela, sem frameworks de UI, sem build step.

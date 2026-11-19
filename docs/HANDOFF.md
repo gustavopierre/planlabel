@@ -11,7 +11,7 @@ Web app minimalista (backend Python/FastAPI, SQLite, frontend HTML/CSS/JS puro) 
 **uma** planning application irlandesa por vez (An Bord Pleanála + ePlanning, via ArcGIS),
 mostra a decisão de dois modelos — **`gemini-decision-1`** (API Gemini) e
 **`typesafe/jev-1.14`** (OpenRouter) — com o percentual de cada subcategoria e categoria,
-oferece o botão **Dúvida** (`gemini-2.5-flash-lite`) e grava no banco **só depois que o
+oferece o botão **Dúvida** (`gemini-3.5-flash-lite`) e grava no banco **só depois que o
 usuário confirma**: a categoria e depois uma subcategoria dela (`energy`: `hybrid | wind |
 solar | bess | hydro | substation | energy_support | leu | data_centre`; `not_energy`:
 `not_energy | low_energy`), mais o link da aplicação.

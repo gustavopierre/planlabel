@@ -5,7 +5,7 @@ tarefa segue a [definição de pronto](TDD.md#6-definição-de-pronto) (nível t
 
 | ID | Tarefa | Testes que precisam passar | Depende de |
 |---|---|---|---|
-| T00 | **Verificar esquemas** das 3 camadas (`?f=json`), registrar campos reais em `docs/SPEC.md §2` e gravar fixtures em `tests/fixtures/arcgis/`. **Verificar os modelos**: `gemini-decision-1` e `gemini-2.5-flash-lite` (`GET https://generativelanguage.googleapis.com/v1beta/models` com `GEMINI_API_KEY`) e `typesafe/jev-1.14` (`GET https://openrouter.ai/api/v1/models`); confirmar os IDs exatos, que o jev aceita `response_format` `json_schema`, e gravar respostas reais em `tests/fixtures/gemini/` e `tests/fixtures/openrouter/`. **Descobrir o link de cada fonte** (campo da camada ou modelo de URL) e registrar no `FIELD_MAP` da SPEC §2. Registrar bloqueios (host ou chave) e seguir com a SPEC. | — (documental) | — |
+| T00 | **Verificar esquemas** das 3 camadas (`?f=json`), registrar campos reais em `docs/SPEC.md §2` e gravar fixtures em `tests/fixtures/arcgis/`. **Verificar os modelos**: `gemini-decision-1` e `gemini-3.5-flash-lite` (`GET https://generativelanguage.googleapis.com/v1beta/models` com `GEMINI_API_KEY`) e `typesafe/jev-1.14` (`GET https://openrouter.ai/api/v1/models`); confirmar os IDs exatos, que o jev aceita `response_format` `json_schema`, e gravar respostas reais em `tests/fixtures/gemini/` e `tests/fixtures/openrouter/`. **Descobrir o link de cada fonte** (campo da camada ou modelo de URL) e registrar no `FIELD_MAP` da SPEC §2. Registrar bloqueios (host ou chave) e seguir com a SPEC. | — (documental) | — |
 | T01 | Esqueleto: `pyproject.toml` (deps, ruff, pytest, cobertura), pacote `planlabel/`, `tests/conftest.py`, `.gitignore` (`data/`, `.venv/`) | `pytest` roda (0 testes) | — |
 | T02 | `models.py`: `Category`, `Subcategory`, `CATEGORY_OF`, `Application`, `Label`, `Decision` (validação e normalização das duas distribuições, coerência do rótulo humano) | M-01..M-08 | T01 |
 | T03 | `repository.py`: schema, `exists`, `save`, `counts`, `add_usage`/`usage` | R-01..R-08, R-11 | T02 |
@@ -13,7 +13,7 @@ tarefa segue a [definição de pronto](TDD.md#6-definição-de-pronto) (nível t
 | T05 | `sources/registry.py` + `service.py`: rodízio de fontes, dedup, pendentes, confirm, skip | S-01..S-13 | T03, T04 |
 | T06 | `translator.py`: protocolo, `NoneTranslator`, `GoogleTranslator`, fábrica, cache | T-01..T-04 | T01 |
 | T06b | `deciders/`: protocolo, prompt da taxonomia, `GeminiDecider` (slot 1), `OpenRouterDecider` (slot 2), comportamento sem chave, cache, cotas (`usage.py`), fábrica por slot; integração no serviço e no repository | G-01..G-11, O-01..O-07, S-14..S-18, R-09, R-10 | T03, T05 |
-| T06c | `advisor.py`: `GeminiAdvisor` (`gemini-2.5-flash-lite`), limitador 15 req/min · 25 000 tokens/min · 1 000 req/dia, `NoneAdvisor`, cache; `doubt` no serviço | H-01..H-08, S-19 | T03, T05, T06b |
+| T06c | `advisor.py`: `GeminiAdvisor` (`gemini-3.5-flash-lite`), limitador 15 req/min · 25 000 tokens/min · 1 000 req/dia, `NoneAdvisor`, cache; `doubt` no serviço | H-01..H-08, S-19 | T03, T05, T06b |
 | T07 | `api.py`: rotas (incl. `/api/decide`, `/api/doubt`, `/api/advisor`), códigos de erro, `create_app` injetável; `__main__.py` | I-01..I-19, I-21, I-22 | T05, T06, T06b, T06c |
 | T08 | Frontend `static/`: layout, painéis dos dois modelos com percentuais, pré-marcação, botão Dúvida, cotas, diálogo, teclado | E-01..E-19 | T07 |
 | T09 | Testes live opcionais | L-01..L-05 (quando a rede/chave permitir) | T04, T06b, T06c |

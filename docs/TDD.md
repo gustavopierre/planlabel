@@ -47,7 +47,7 @@ Fixtures-chave (`tests/conftest.py`):
 | ID | Caso |
 |---|---|
 | R-01 | schema criado em banco novo; reabrir não falha (idempotente) |
-| R-02 | `save` + `exists` → True; outra autoridade com mesmo número → False |
+| R-02 | `save` + `exists` → True; outra autoridade com mesmo número → False; mesma fonte `eplanning` com outra camada (`epl_1`) e mesmo conselho + número → `exists` True e `save` → `DuplicateError` |
 | R-03 | `save` duplicado → `DuplicateError`; total continua 1 |
 | R-04 | INSERT SQL direto com `category='energy', subcategory='low_energy'` → `sqlite3.IntegrityError` |
 | R-05 | INSERT SQL direto com `category='not_energy', subcategory='wind'` ou `subcategory='nuclear'` → `IntegrityError` |
@@ -86,7 +86,7 @@ Fixtures-chave (`tests/conftest.py`):
 | S-09 | `confirm` quando outra sessão já gravou a mesma aplicação → `DuplicateError` |
 | S-10 | `skip` não grava nada; o ID não é oferecido de novo na mesma execução |
 | S-11 | **nenhuma** escrita em `labeled_application` ocorre em `next_application` nem em `skip` (spy no repository) |
-| S-12 | rotação de fontes: 6 chamadas seguidas (de tokens/sessões diferentes) servem `abp, epl_1, epl_0, abp, epl_1, epl_0`; fonte com `SourceError` ou sem registro novo em 10 tentativas é pulada e a rotação segue; chamadas concorrentes (threads) não repetem nem pulam posição |
+| S-12 | rotação de fontes: 6 chamadas seguidas (de tokens/sessões diferentes) servem `abp, eplanning, abp, eplanning, abp, eplanning`; fonte com `SourceError` ou sem registro novo em 10 tentativas é pulada e a rotação segue; chamadas concorrentes (threads) não repetem nem pulam posição |
 | S-13 | limite de 100 pendentes: o mais antigo é descartado |
 
 ### 3.4.1 Decisor do slot 1 — `GeminiDecider` (`tests/unit/test_decider_gemini.py`, com `respx`)
@@ -108,7 +108,7 @@ Fixtures-chave (`tests/conftest.py`):
 | ID | Caso |
 |---|---|
 | O-01 | requisição `POST https://openrouter.ai/api/alpha/decisions` com `Authorization: Bearer`, `model: "typesafe/jev-1.14"`, a descrição em `state` e as mesmas perguntas do G-07; sem `user`, `session_id`, `trace` nem headers opcionais |
-| O-02 | resposta real gravada (`jev_decision_wind.json`) → `Decision` com subcategory wind 100 %, category energy 100 %; `model` = snapshot da resposta (`typesafe/jev-1.14-20261014`) registrado em log |
+| O-02 | resposta real gravada (`jev_decision_wind.json`) → `Decision` com subcategory wind 100 %, category energy 100 %; `model` = snapshot da resposta (`typesafe/jev-1.14-20261014`), que vai para `m2_model`; sem decisão, `m2_model` = nome do `.env` |
 | O-03 | resposta com `refusal`, sem uma das perguntas ou com `error` no corpo → `decision=None`, `reason="error"` |
 | O-04 | 429 → `rate_limited`; 402 (sem créditos), 5xx e timeout → `error`; sem retry |
 | O-05 | sem `OPENROUTER_API_KEY` → nenhuma chamada HTTP, `reason="no_key"`, `model="typesafe/jev-1.14"`; alias `~typesafe/jev-latest` é recusado na inicialização |
@@ -201,7 +201,7 @@ Fixtures-chave (`tests/conftest.py`):
 | L-02 | `list_ids()` e `fetch()` reais devolvem uma `Application` válida por fonte |
 | L-03 | com `GEMINI_API_KEY`, `gemini-decision-1` devolve decisão válida para 3 descrições conhecidas (wind farm, house extension, BESS) |
 | L-04 | com `OPENROUTER_API_KEY`, `typesafe/jev-1.14` devolve decisão válida para as mesmas 3 descrições |
-| L-05 | com `GEMINI_API_KEY`, `gemini-2.5-flash-lite` devolve opinião válida e `usageMetadata` com tokens |
+| L-05 | com `GEMINI_API_KEY`, `gemini-3.5-flash-lite` devolve opinião válida e `usageMetadata` com tokens |
 
 ### 3.9 Deploy (pós-deploy na VPS 3)
 | ID | Caso |

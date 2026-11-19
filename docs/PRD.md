@@ -34,8 +34,7 @@ multiusuário no MVP.
 | Código (`source`) | Serviço | Camada | Campo nº | Campo descrição |
 |---|---|---|---|---|
 | `abp` | An Bord Pleanála / An Coimisiún Pleanála — Cases 2016 Onwards | `services-eu1.arcgis.com/o56BSnENmD5mYs3j/.../Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` |
-| `epl_1` | ePlanning / LGMA — IrishPlanningApplications | `services.arcgis.com/NzlPQPKn5QF9v2US/.../IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` |
-| `epl_0` | ePlanning / LGMA — IrishPlanningApplications | `services.arcgis.com/NzlPQPKn5QF9v2US/.../IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` (a confirmar) | `DevelopmentDescription` (a confirmar) |
+| `eplanning` | ePlanning / LGMA — IrishPlanningApplications (camada 0, pontos; a camada 1 tem as mesmas aplicações e não é usada) | `services.arcgis.com/NzlPQPKn5QF9v2US/.../IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` |
 
 URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
 
@@ -55,7 +54,7 @@ URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
    sugestão e o usuário segue.
 4. O usuário pode clicar em **Traduzir** para ver a descrição em português (só leitura, não gravada).
 5. Se tiver dúvida, o usuário pode clicar em **Dúvida** e ler a opinião do
-   `gemini-2.5-flash-lite` (mesma chave do Gemini). O botão fica desabilitado enquanto um
+   `gemini-3.5-flash-lite` (mesma chave do Gemini). O botão fica desabilitado enquanto um
    limite do modelo estiver atingido (15 req/min, 25 000 tokens/min ou 1 000 req/dia) e
    volta sozinho quando o limite libera.
 6. O usuário tem a **decisão final**: escolhe primeiro a **categoria** (energia / não
@@ -166,7 +165,7 @@ que ninguém fora da lista entre.
 - Testes: I-20, D-01..D-06.
 
 **US-14 — Pedir uma opinião quando estou em dúvida** · RF-21
-Como rotulador, quero pedir a opinião do `gemini-2.5-flash-lite` quando estou em dúvida, sem
+Como rotulador, quero pedir a opinião do `gemini-3.5-flash-lite` quando estou em dúvida, sem
 estourar os limites do plano gratuito.
 - Quando clico em Dúvida (ou `D`), então vejo a opinião em português, com a categoria e a subcategoria que o modelo escolheria e o porquê; nenhuma opção é marcada e nada é gravado.
 - Dado que o limite de 15 req/min, 25 000 tokens/min ou 1 000 req/dia foi atingido, então o botão fica desabilitado, com o motivo e o horário de volta na dica.
@@ -185,7 +184,7 @@ modelos em versões futuras.
 
 | ID | Requisito |
 |---|---|
-| RF-01 | Buscar **um** registro por vez, usando uma fonte por vez em rodízio (ABP → ePlanning 1 → ePlanning 0), com um só rodízio para todos os usuários; dentro da fonte, registro aleatório. |
+| RF-01 | Buscar **um** registro por vez, usando uma fonte por vez em rodízio (ABP → ePlanning), com um só rodízio para todos os usuários; dentro da fonte, registro aleatório. |
 | RF-02 | Antes de exibir, verificar se o registro já existe no banco; se existir, descartar e buscar outro. |
 | RF-03 | Nunca exibir uma aplicação que já está no banco. |
 | RF-04 | Considerar inválido (e pular) registro sem número ou sem descrição (vazio/só espaços). |
@@ -205,7 +204,7 @@ modelos em versões futuras.
 | RF-18 | Se um modelo não entregar a sugestão (falha, timeout, limite, resposta inválida), o painel dele fica sem sugestão e a rotulagem segue normalmente. |
 | RF-19 | Gravar junto com o rótulo humano, para o modelo 1 e o modelo 2, o nome do modelo em `m1_model`/`m2_model` (sempre preenchidos) e um único campo de texto com a categoria e a subcategoria de maior percentual e os seus percentuais, como vieram, mesmo se contraditórias (decidido pelo dono em 2026-11-19). |
 | RF-20 | A interface mostra quantas requisições foram feitas no dia a cada modelo e os limites (slot 1: 200/min e 10 000/dia, dados oficiais do free tier). Modelo no limite não é chamado. |
-| RF-21 | Botão **Dúvida**: mostra a opinião do `gemini-2.5-flash-lite` (mesma `GEMINI_API_KEY`). Desabilitado quando atingir 15 req/min, 25 000 tokens/min ou 1 000 req/dia; reabilitado sozinho quando o uso voltar ao normal. A opinião não é gravada. |
+| RF-21 | Botão **Dúvida**: mostra a opinião do `gemini-3.5-flash-lite` (mesma `GEMINI_API_KEY`). Desabilitado quando atingir 15 req/min, 25 000 tokens/min ou 1 000 req/dia; reabilitado sozinho quando o uso voltar ao normal. A opinião não é gravada. |
 | RF-22 | O modelo de cada slot é trocável por configuração, sem mudar o código. |
 | RF-23 | Mostrar e gravar o link da página pública da aplicação (`application_url`), quando a fonte permitir. |
 
@@ -231,9 +230,9 @@ formatos de treino (JSONL etc.) — este último é o candidato natural para a v
 
 | Risco | Mitigação |
 |---|---|
-| Esquema das camadas `epl_0`/`epl_1` diferente do esperado | Tarefa T00 verifica os esquemas reais antes de codar o adaptador; mapeamento de campos fica em configuração. |
+| Esquema das camadas muda | Verificado na T00 (SPEC §2); mapeamento de campos num só lugar (`FIELD_MAP`); testes live L-01. |
 | `ApplicationNumber` não é único no país (o mesmo número existe em Laois e Offaly) | Chave de unicidade inclui a autoridade de planejamento (SPEC §3). |
-| Nome exato ou acesso aos modelos (`gemini-decision-1`, `typesafe/jev-1.14`, `gemini-2.5-flash-lite`) diferente do esperado | Tarefa T00 lista os modelos disponíveis para cada chave; nomes configuráveis (SPEC §7). |
+| Nome exato ou acesso aos modelos (`gemini-decision-1`, `typesafe/jev-1.14`, `gemini-3.5-flash-lite`) diferente do esperado | Tarefa T00 lista os modelos disponíveis para cada chave; nomes configuráveis (SPEC §7). |
 | Percentual "autodeclarado" pelo modelo não é probabilidade calibrada | Mostrado como indicação; gravar distribuição e rótulo humano permite medir a calibração depois. |
 | Viés de ancoragem: o usuário tende a aceitar a sugestão | Pré-marcação só com os dois modelos de acordo; sugestões visivelmente marcadas; gravar decisões e rótulo separadamente (RF-19) permite medir e auditar a concordância. |
 | Tradução depende de serviço externo | Interface `Translator` plugável; falha de tradução não bloqueia a rotulagem. |
