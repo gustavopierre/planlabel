@@ -240,3 +240,45 @@ def test_S18_decide_invalid_slot(tmp_db):
     p = svc.next_application()
     with pytest.raises(ValueError):
         svc.decide(p.token, 3)
+
+
+# -- T06c: serviço + conselheiro ----------------------------------------------------
+
+
+class FakeAdvisor:
+    def __init__(self, blocked: bool = False) -> None:
+        self.blocked = blocked
+        self.calls = 0
+
+    def status(self) -> dict:
+        return {"available": not self.blocked, "reason": "rpm" if self.blocked else None}
+
+    def opinion(self, app):
+        from planlabel.advisor import AdvisorUnavailable
+
+        self.calls += 1
+        if self.blocked:
+            raise AdvisorUnavailable(self.status())
+        return {"model": "m", "category": "energy", "subcategory": "wind", "text": "ok"}
+
+
+def test_S19_doubt_never_writes_and_respects_block(tmp_db):
+    from planlabel.advisor import AdvisorUnavailable
+
+    advisor = FakeAdvisor()
+    svc = service(tmp_db, advisor=advisor)
+    p = svc.next_application()
+    with patch.object(Repository, "save", side_effect=AssertionError("escreveu")) as save:
+        assert svc.doubt(p.token)["subcategory"] == "wind"
+    save.assert_not_called()
+    advisor.blocked = True
+    with pytest.raises(AdvisorUnavailable):
+        svc.doubt(p.token)
+    with pytest.raises(UnknownToken):
+        svc.doubt("nope")
+    svc.confirm(p.token, WIND)
+    import sqlite3
+
+    with sqlite3.connect(tmp_db.path) as conn:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(labeled_application)")]
+    assert not any("opinion" in c or "advisor" in c for c in cols)

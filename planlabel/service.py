@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from planlabel.advisor import NoneAdvisor
 from planlabel.models import Application, Counts, Label, SlotResult
 from planlabel.repository import DuplicateError, Repository
 from planlabel.sources.arcgis import SourceError
@@ -61,7 +62,7 @@ class LabelingService:
             raise ValueError("são obrigatórios os decisores dos slots 1 e 2")
         self.repo = repo
         self.deciders = dict(deciders)
-        self.advisor = advisor
+        self.advisor = advisor or NoneAdvisor()
         self._rng = rng or random.Random()
         self._rotation = SourceRotation(sources)
         self._rotation_lock = threading.Lock()
@@ -176,6 +177,11 @@ class LabelingService:
             result = self.deciders[slot].decide(pending.application)
             pending.slots[slot] = result
             return result
+
+    def doubt(self, token: str) -> dict:
+        """Opinião do conselheiro. Não grava nada (só o contador de uso sobe)."""
+        pending = self._get(token)
+        return self.advisor.opinion(pending.application)
 
     def counts(self) -> Counts:
         return self.repo.counts()
