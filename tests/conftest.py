@@ -82,17 +82,22 @@ def decision_for(model: str, sub: str = "wind", cat: str = "energy") -> Decision
 class FakeDecider:
     """Decisor programável: `answer` é (sub, cat), None (falha) ou um SlotResult pronto."""
 
-    def __init__(self, slot: int, model: str, answer=("wind", "energy"), delay: float = 0.0):
+    def __init__(
+        self, slot: int, model: str, answer=("wind", "energy"), delay: float = 0.0, tracker=None
+    ):
         self.slot = slot
         self.model = model
         self.answer = answer
         self.delay = delay
+        self.tracker = tracker
         self.calls = 0
 
     def decide(self, app: Application) -> SlotResult:
         import time
 
         self.calls += 1
+        if self.tracker is not None:
+            self.tracker.record_request()
         if self.delay:
             time.sleep(self.delay)
         if isinstance(self.answer, SlotResult):
@@ -108,7 +113,7 @@ class FakeDecider:
         )
 
     def quota(self):
-        return None
+        return self.tracker.quota() if self.tracker is not None else None
 
 
 def fake_deciders(answer1=("wind", "energy"), answer2=("wind", "energy")) -> dict[int, FakeDecider]:
@@ -126,3 +131,43 @@ def rng() -> random.Random:
 @pytest.fixture
 def tmp_db(tmp_path) -> Repository:
     return Repository(tmp_path / "labels.sqlite3")
+
+
+class FakeAdvisor:
+    """Conselheiro programável: `mode` = "ok", "blocked" ou "error"."""
+
+    def __init__(self, mode: str = "ok", model: str = "gemini-3.5-flash-lite") -> None:
+        self.mode = mode
+        self.model = model
+        self.calls = 0
+        self.retry_at = "2026-11-19T20:01:00+00:00"
+
+    def status(self, description: str = "") -> dict:
+        blocked = self.mode == "blocked"
+        return {
+            "model": self.model,
+            "available": not blocked,
+            "reason": "rpm" if blocked else None,
+            "retry_at": self.retry_at if blocked else None,
+            "rpm_used": 15 if blocked else self.calls,
+            "rpm_limit": 15,
+            "tpm_used": 0,
+            "tpm_limit": 25000,
+            "rpd_used": self.calls,
+            "rpd_limit": 1000,
+        }
+
+    def opinion(self, app: Application) -> dict:
+        from planlabel.advisor import AdvisorError, AdvisorUnavailable
+
+        if self.mode == "blocked":
+            raise AdvisorUnavailable(self.status())
+        self.calls += 1
+        if self.mode == "error":
+            raise AdvisorError("falhou", self.status())
+        return {
+            "model": self.model,
+            "category": "energy",
+            "subcategory": "wind",
+            "text": "Escolheria wind: '7 no. wind turbines'.",
+        }
