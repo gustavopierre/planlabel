@@ -380,3 +380,39 @@ def test_I22_doubt_ok_blocked_error_and_status(tmp_path):
     failing, _, _ = build(tmp_path / "c", advisor=FakeAdvisor("error"))
     token = failing.get("/api/next").json()["token"]
     assert failing.post("/api/doubt", json={"token": token}).status_code == 502
+
+
+def test_build_app_wires_real_components_from_settings(tmp_path, monkeypatch):
+    from planlabel.advisor import GeminiAdvisor, NoneAdvisor
+    from planlabel.api import build_app
+    from planlabel.config import Settings
+    from planlabel.deciders.gemini import GeminiDecider
+    from planlabel.deciders.openrouter import OpenRouterDecider
+    from planlabel.sources.arcgis import ArcGISSource
+
+    base = {
+        "model1_provider": "gemini",
+        "model1_id": "gemini-decision-1",
+        "model2_provider": "openrouter",
+        "model2_id": "typesafe/jev-1.14",
+        "advisor_id": "gemini-3.5-flash-lite",
+        "db_path": tmp_path / "x.sqlite3",
+        "translator": "none",
+    }
+    app = build_app(Settings(_env_file=None, **base, GEMINI_API_KEY="g"))
+    svc = app.state.service
+    assert isinstance(svc.deciders[1], GeminiDecider)
+    assert isinstance(svc.deciders[2], OpenRouterDecider)
+    assert (svc.deciders[1].tracker.rpm, svc.deciders[1].tracker.rpd) == (200, 10000)
+    assert isinstance(svc.advisor, GeminiAdvisor)
+    assert [s.name for s in svc._rotation.sources] == ["abp", "eplanning"]
+    assert all(isinstance(s, ArcGISSource) for s in svc._rotation.sources)
+
+    swapped = build_app(
+        Settings(
+            _env_file=None,
+            **{**base, "model1_provider": "openrouter", "model1_id": "typesafe/jev-1.13"},
+        )
+    )
+    assert isinstance(swapped.state.service.deciders[1], OpenRouterDecider)
+    assert isinstance(swapped.state.service.advisor, NoneAdvisor)
