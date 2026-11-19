@@ -61,7 +61,7 @@ Fixtures-chave (`tests/conftest.py`):
 ### 3.3 ArcGISSource (`tests/unit/test_arcgis_source.py`, com `respx`)
 | ID | Caso |
 |---|---|
-| A-01 | `list_ids()` lê `objectIds` da resposta; com `exceededTransferLimit: true` pede a próxima página com `OBJECTID > maior ID` até acabar (400 000 + 112 860 → 512 860) |
+| A-01 | `list_ids()` lê `objectIds`; pede por faixas de `OBJECTID` até o maior ID (`outStatistics`); faixa cortada (`exceededTransferLimit`, subconjunto arbitrário) é dividida ao meio; resultado = todos os IDs, sem faltar nenhum |
 | A-02 | `list_ids()` usa cache dentro do TTL (1 chamada HTTP para 2 invocações) e recarrega após o TTL (relógio injetado) |
 | A-03 | `fetch(id)` monta a query correta (`objectIds`, `outFields`, `returnGeometry=false`) |
 | A-04 | `fetch(id)` mapeia campos por fonte (`abp`: ABPCASEID/DEVDESC/PLANINGATY; `epl_*`: ApplicationNumber/…) |

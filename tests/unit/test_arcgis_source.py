@@ -38,50 +38,67 @@ def make(config, clock=None, ttl=86400):
     return src, sleeps
 
 
+def ids_handler(ids_body: dict):
+    top = max(ids_body["objectIds"])
+
+    def handler(request):
+        if "outStatistics" in request.url.params:
+            return httpx.Response(200, json={"features": [{"attributes": {"mx": top}}]})
+        return httpx.Response(200, json=ids_body)
+
+    return handler
+
+
 @respx.mock
 def test_A01_list_ids_reads_object_ids(arc):
-    respx.get(f"{ABP.url}/query").mock(return_value=httpx.Response(200, json=arc("abp_ids.json")))
+    respx.get(f"{ABP.url}/query").mock(side_effect=ids_handler(arc("abp_ids.json")))
     src, _ = make(ABP)
     ids = src.list_ids()
     assert ids == sorted(arc("abp_ids.json")["objectIds"])
 
 
 @respx.mock
-def test_A01_list_ids_pages_while_transfer_limit_exceeded():
+def test_A01_list_ids_by_ranges_when_server_truncates_arbitrarily():
+    """Como o ArcGIS real: acima do limite devolve um subconjunto ARBITRÁRIO dos IDs."""
+    import re
+
+    server_ids = [i for i in range(1, 1000) if i % 7]  # buracos, máximo 998
+    limit = 300
     calls = []
 
     def handler(request):
-        where = request.url.params["where"]
-        calls.append(where)
-        if where == "OBJECTID>0":
+        params = request.url.params
+        if "outStatistics" in params:
+            return httpx.Response(200, json={"features": [{"attributes": {"mx": max(server_ids)}}]})
+        lo, hi = map(int, re.match(r"OBJECTID>(\d+) AND OBJECTID<=(\d+)", params["where"]).groups())
+        calls.append((lo, hi))
+        ids = [i for i in server_ids if lo < i <= hi]
+        if len(ids) > limit:
             return httpx.Response(
-                200,
-                json={"objectIds": [3, 1, 2], "exceededTransferLimit": True},
+                200, json={"objectIds": ids[::-1][:limit], "exceededTransferLimit": True}
             )
-        if where == "OBJECTID>3":
-            return httpx.Response(200, json={"objectIds": [5, 4]})
-        return httpx.Response(500)
+        return httpx.Response(200, json={"objectIds": ids})
 
     respx.get(f"{EPL.url}/query").mock(side_effect=handler)
     src, _ = make(EPL)
-    assert src.list_ids() == [1, 2, 3, 4, 5]
-    assert calls == ["OBJECTID>0", "OBJECTID>3"]
+    src.RANGE = 400
+    assert src.list_ids() == server_ids
+    assert calls[-1][1] == max(server_ids)
 
 
 @respx.mock
 def test_A02_list_ids_cached_within_ttl_and_reloaded_after(arc):
-    route = respx.get(f"{ABP.url}/query").mock(
-        return_value=httpx.Response(200, json=arc("abp_ids.json"))
-    )
+    route = respx.get(f"{ABP.url}/query").mock(side_effect=ids_handler(arc("abp_ids.json")))
     clock = Clock()
     src, _ = make(ABP, clock=clock, ttl=60)
     src.list_ids()
+    calls = route.call_count
     clock.t += 59
     src.list_ids()
-    assert route.call_count == 1
+    assert route.call_count == calls
     clock.t += 2
     src.list_ids()
-    assert route.call_count == 2
+    assert route.call_count == 2 * calls
 
 
 @respx.mock

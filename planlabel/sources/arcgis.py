@@ -110,22 +110,50 @@ class ArcGISSource:
             f"{self.name}: sem resposta após {len(BACKOFF_S) + 1} tentativas"
         ) from last
 
+    RANGE = 250_000  # faixa de OBJECTID por consulta; o ePlanning corta em 400 000 IDs
+
+    def _max_object_id(self) -> int:
+        body = self._query(
+            {
+                "where": "1=1",
+                "outStatistics": (
+                    '[{"statisticType":"max","onStatisticField":"OBJECTID",'
+                    '"outStatisticFieldName":"mx"}]'
+                ),
+            }
+        )
+        try:
+            return int(body["features"][0]["attributes"]["mx"])
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            raise SourceError(f"{self.name}: não consegui ler o maior OBJECTID") from exc
+
     def list_ids(self) -> list[int]:
-        """Todos os OBJECTIDs da camada, paginando quando o servidor corta a lista."""
+        """Todos os OBJECTIDs da camada.
+
+        Acima do limite de transferência o ArcGIS devolve um subconjunto ARBITRÁRIO dos IDs
+        (não os menores). Por isso a lista é pedida por faixas fixas de OBJECTID até o maior
+        ID da camada; se uma faixa ainda for cortada, ela é dividida ao meio.
+        """
         if self._ids is not None and self._clock() - self._ids_at < self._ttl_s:
             return self._ids
+        top = self._max_object_id()
         ids: set[int] = set()
-        last = 0
-        while True:
-            body = self._query({"where": f"OBJECTID>{last}", "returnIdsOnly": "true"})
-            page = body.get("objectIds") or []
-            ids.update(page)
-            if not body.get("exceededTransferLimit") or not page:
-                break
-            last = max(page)
+        lo, step = 0, self.RANGE
+        while lo < top:
+            hi = min(lo + step, top)
+            body = self._query(
+                {"where": f"OBJECTID>{lo} AND OBJECTID<={hi}", "returnIdsOnly": "true"}
+            )
+            if body.get("exceededTransferLimit"):
+                if step == 1:
+                    raise SourceError(f"{self.name}: lista de IDs cortada mesmo com faixa 1")
+                step = max(1, step // 2)
+                continue
+            ids.update(body.get("objectIds") or [])
+            lo = hi
         self._ids = sorted(ids)
         self._ids_at = self._clock()
-        log.info("%s: %d IDs carregados", self.name, len(self._ids))
+        log.info("%s: %d IDs carregados (maior OBJECTID %d)", self.name, len(self._ids), top)
         return self._ids
 
     def fetch(self, object_id: int) -> Application | None:

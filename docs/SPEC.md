@@ -102,15 +102,18 @@ normalização é `strip()` + espaços internos colapsados.
 
 | Uso | Parâmetros de `GET <url>/query` |
 |---|---|
-| Lista de IDs | `where=OBJECTID>{último}&returnIdsOnly=true&f=json` → `{"objectIds":[...], "exceededTransferLimit": true?}` — paginado (abaixo) |
+| Maior ID | `where=1=1&outStatistics=[{"statisticType":"max","onStatisticField":"OBJECTID","outStatisticFieldName":"mx"}]&f=json` |
+| Lista de IDs | `where=OBJECTID>{lo} AND OBJECTID<={hi}&returnIdsOnly=true&f=json` — por faixas (abaixo) |
 | Um registro | `objectIds=<id>&outFields=<num>,<desc>,<aut>[,<link>]&returnGeometry=false&f=json` |
 
 - Timeout 15 s; até 3 tentativas com backoff exponencial (0,5 s, 1 s, 2 s) em erro de rede/5xx.
 - Resposta com chave `error` (o ArcGIS devolve HTTP 200 com erro no corpo) é tratada como falha.
-- **Paginação da lista de IDs:** o ePlanning devolve no máximo 400 000 IDs por resposta, fora de
-  ordem, com `exceededTransferLimit: true`. Enquanto vier esse sinal, repetir com
-  `where=OBJECTID > <maior ID recebido>` (começando em `OBJECTID > 0`). Verificado na T00: a
-  segunda página trouxe os 112 860 IDs restantes da camada 0.
+- **Lista de IDs por faixas:** acima do limite de transferência (400 000 no ePlanning) o ArcGIS
+  devolve um subconjunto **arbitrário** dos IDs, com `exceededTransferLimit: true` — não os
+  menores. Por isso a lista é pedida por faixas fixas de `OBJECTID` (250 000 por vez) até o
+  maior ID da camada (`outStatistics` max); faixa ainda cortada é dividida ao meio. Achado no
+  teste ao vivo da T07: paginar por "maior ID recebido" carregava só 400 033 dos 512 860 IDs;
+  com faixas, carrega os 512 860 em ~4 s.
 - Cache da lista de IDs: em memória, TTL 24 h (`PLANLABEL_IDS_TTL_S`).
 - Normalização: `strip()` em todos os textos; espaços internos múltiplos colapsados na descrição.
 
