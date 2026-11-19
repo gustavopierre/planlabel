@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Protocol
 
 from deep_translator import GoogleTranslator as _DeepGoogle
+from deep_translator import MyMemoryTranslator as _DeepMyMemory
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,36 @@ class GoogleTranslator:
         return result
 
 
+class MyMemoryTranslator:
+    """MyMemory via deep-translator (sem chave; limite diário anônimo de caracteres)."""
+
+    def translate(self, text: str) -> str:
+        try:
+            result = _DeepMyMemory(source="en-GB", target="pt-BR").translate(text)
+        except Exception as exc:
+            raise TranslationError(str(exc)) from exc
+        if not result:
+            raise TranslationError("tradução vazia")
+        return result
+
+
+class FallbackTranslator:
+    """Tenta cada tradutor na ordem; falha só se todos falharem."""
+
+    def __init__(self, translators: list[Translator]) -> None:
+        self.translators = translators
+
+    def translate(self, text: str) -> str:
+        errors = []
+        for translator in self.translators:
+            try:
+                return translator.translate(text)
+            except TranslationError as exc:
+                log.warning("%s falhou: %s", type(translator).__name__, exc)
+                errors.append(str(exc))
+        raise TranslationError("; ".join(errors))
+
+
 class CachedTranslator:
     """Cache LRU em memória na frente de um tradutor."""
 
@@ -65,9 +96,16 @@ class CachedTranslator:
         return result
 
 
+BACKENDS = {"google": GoogleTranslator, "mymemory": MyMemoryTranslator}
+
+
 def make_translator(name: str) -> Translator:
-    if name == "none":
+    """`name`: "none" ou lista separada por vírgula, tentada em ordem (ex.: "google,mymemory")."""
+    if name.strip() == "none":
         return NoneTranslator()
-    if name == "google":
-        return CachedTranslator(GoogleTranslator())
-    raise ValueError(f"tradutor desconhecido: {name!r} (use 'google' ou 'none')")
+    names = [n.strip() for n in name.split(",") if n.strip()]
+    unknown = [n for n in names if n not in BACKENDS]
+    if not names or unknown:
+        raise ValueError(f"tradutor desconhecido: {name!r} (use google, mymemory ou none)")
+    backends = [BACKENDS[n]() for n in names]
+    return CachedTranslator(backends[0] if len(backends) == 1 else FallbackTranslator(backends))

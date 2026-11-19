@@ -71,7 +71,12 @@ fonte ou descrição. Pendências não vão para o banco (RF-10).
 
 Decisão do dono (2026-11-19): `deep-translator` (Google Translate não oficial, sem chave),
 configurável por `PLANLABEL_TRANSLATOR`. Não usar `gemini-3.5-flash-lite` para traduzir: ele
-dividiria a cota diária com o botão Dúvida. Traduções
+dividiria a cota diária com o botão Dúvida.
+
+**Achado da T06 (2026-11-19):** o Google Translate não oficial responde "too many requests"
+a partir da VPS 2 (IP de datacenter). Por isso o padrão é `google,mymemory`: tenta o Google
+e, se falhar, usa o MyMemory (grátis, sem chave, ~5 000 caracteres/dia anônimo; testado e
+funcionando da VPS 2). Nenhum e-mail é enviado ao MyMemory. Traduções
 são cacheadas em memória (LRU) e **não** são gravadas no dataset.
 
 ### 2.6.1 Dois modelos decisores (slots 1 e 2) e o conselheiro (Dúvida)

@@ -11,7 +11,7 @@ tarefa segue a [definição de pronto](TDD.md#6-definição-de-pronto) (nível t
 | T03 | `repository.py`: schema, `exists`, `save`, `counts`, `add_usage`/`usage` | R-01..R-08, R-11 | T02 |
 | T04 | `sources/arcgis.py`: `list_ids` (cache/TTL), `fetch`, mapeamento (incl. link da aplicação), retry, erros | A-01..A-10 | T00, T02 |
 | T05 | `sources/registry.py` + `service.py`: rodízio de fontes, dedup, pendentes, confirm, skip | S-01..S-13 | T03, T04 |
-| T06 | `translator.py`: protocolo, `NoneTranslator`, `GoogleTranslator`, fábrica, cache | T-01..T-04 | T01 |
+| T06 | `translator.py`: protocolo, `NoneTranslator`, `GoogleTranslator`, `MyMemoryTranslator`, reserva, fábrica, cache | T-01..T-05 | T01 |
 | T06b | `deciders/`: protocolo, prompt da taxonomia, `GeminiDecider` (slot 1), `OpenRouterDecider` (slot 2), comportamento sem chave, cache, cotas (`usage.py`), fábrica por slot; integração no serviço e no repository | G-01..G-11, O-01..O-07, S-14..S-18, R-09, R-10 | T03, T05 |
 | T06c | `advisor.py`: `GeminiAdvisor` (`gemini-3.5-flash-lite`), limitador 15 req/min · 25 000 tokens/min · 1 000 req/dia, `NoneAdvisor`, cache; `doubt` no serviço | H-01..H-08, S-19 | T03, T05, T06b |
 | T07 | `api.py`: rotas (incl. `/api/decide`, `/api/doubt`, `/api/advisor`), códigos de erro, `create_app` injetável; `__main__.py` | I-01..I-19, I-21, I-22 | T05, T06, T06b, T06c |

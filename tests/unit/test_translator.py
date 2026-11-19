@@ -2,7 +2,9 @@ import pytest
 
 from planlabel.translator import (
     CachedTranslator,
+    FallbackTranslator,
     GoogleTranslator,
+    MyMemoryTranslator,
     NoneTranslator,
     TranslationError,
     make_translator,
@@ -57,5 +59,28 @@ def test_T04_factory_picks_implementation():
     google = make_translator("google")
     assert isinstance(google, CachedTranslator)
     assert isinstance(google.backend, GoogleTranslator)
+    chain = make_translator("google,mymemory")
+    assert isinstance(chain.backend, FallbackTranslator)
+    assert [type(t) for t in chain.backend.translators] == [GoogleTranslator, MyMemoryTranslator]
     with pytest.raises(ValueError, match="tradutor"):
         make_translator("babelfish")
+
+
+def test_T05_fallback_uses_next_translator_when_first_fails():
+    first, second = CountingBackend(fail=True), CountingBackend()
+
+    class Wrap:
+        def __init__(self, b):
+            self.b = b
+
+        def translate(self, text):
+            try:
+                return self.b.translate(text)
+            except RuntimeError as exc:
+                raise TranslationError(str(exc)) from exc
+
+    t = FallbackTranslator([Wrap(first), Wrap(second)])
+    assert t.translate("x") == "PT:x"
+    assert (first.calls, second.calls) == (1, 1)
+    with pytest.raises(TranslationError):
+        FallbackTranslator([Wrap(CountingBackend(fail=True))]).translate("x")

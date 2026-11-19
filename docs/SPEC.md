@@ -472,7 +472,7 @@ não fazem nada) · `D` dúvida · `T` traduzir · `Enter` confirmar · `Esc` ca
 | Variável | Padrão |
 |---|---|
 | `PLANLABEL_DB_PATH` | `data/labels.sqlite3` |
-| `PLANLABEL_TRANSLATOR` | `google` (`google` \| `deepl` \| `claude` \| `none`) |
+| `PLANLABEL_TRANSLATOR` | `google,mymemory` (lista tentada em ordem; `google`, `mymemory` ou `none`) |
 | `PLANLABEL_IDS_TTL_S` | `86400` |
 | `PLANLABEL_HOST` / `PLANLABEL_PORT` | `127.0.0.1` / `8000` (no container: `0.0.0.0`) |
 | `PLANLABEL_MODEL1_PROVIDER` / `PLANLABEL_MODEL1_ID` | **obrigatório, sem padrão** (hoje: `gemini` / `gemini-decision-1`) |

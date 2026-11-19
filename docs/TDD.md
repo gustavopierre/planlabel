@@ -143,7 +143,8 @@ Fixtures-chave (`tests/conftest.py`):
 | T-01 | `NoneTranslator` devolve o texto original |
 | T-02 | cache: mesma entrada → backend chamado 1 vez |
 | T-03 | falha do backend → `TranslationError` |
-| T-04 | fábrica escolhe a implementação por `PLANLABEL_TRANSLATOR` |
+| T-04 | fábrica escolhe a implementação por `PLANLABEL_TRANSLATOR` (`none`, `google`, lista `google,mymemory`) |
+| T-05 | reserva: primeiro tradutor falha → usa o seguinte; todos falham → `TranslationError` |
 
 ### 3.6 API (`tests/integration/test_api.py`)
 | ID | Caso |
