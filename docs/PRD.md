@@ -34,7 +34,7 @@ multiusuário no MVP.
 | Código (`source`) | Serviço | Camada | Campo nº | Campo descrição |
 |---|---|---|---|---|
 | `abp` | An Bord Pleanála / An Coimisiún Pleanála — Cases 2016 Onwards | `services-eu1.arcgis.com/o56BSnENmD5mYs3j/.../Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` |
-| `eplanning` | ePlanning / LGMA — IrishPlanningApplications (camada 0, pontos; a camada 1 tem as mesmas aplicações e não é usada) | `services.arcgis.com/NzlPQPKn5QF9v2US/.../IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` |
+| `eplanning` | ePlanning / LGMA — IrishPlanningApplications (camadas 0, pontos, e 1, polígonos, juntas como uma fonte; quase as mesmas aplicações) | `services.arcgis.com/NzlPQPKn5QF9v2US/.../IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` |
 
 URLs completas em [SPEC.md §2](SPEC.md#2-fontes).
 

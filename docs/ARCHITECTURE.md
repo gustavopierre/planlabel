@@ -44,7 +44,7 @@ O ArcGIS permite pedir **só os IDs** de uma camada (`returnIdsOnly=true`; testa
 
 1. Na primeira necessidade, cada fonte baixa e guarda **em memória** a lista de
    `OBJECTID`s (cache com TTL de 24 h).
-2. Para servir um registro: usa **uma fonte por vez, alternando** (`abp → eplanning`, só a camada 0 do ePlanning),
+2. Para servir um registro: usa **uma fonte por vez, alternando** (`abp → eplanning`; as camadas 0 e 1 do ePlanning contam como uma fonte),
    com uma só rotação no servidor para todos os usuários (decisão do dono, 2026-11-19);
    na fonte da vez sorteia um `OBJECTID` e busca **só esse** registro
    (`objectIds=<id>&outFields=...&returnGeometry=false`).

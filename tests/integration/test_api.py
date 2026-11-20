@@ -388,7 +388,7 @@ def test_build_app_wires_real_components_from_settings(tmp_path, monkeypatch):
     from planlabel.config import Settings
     from planlabel.deciders.gemini import GeminiDecider
     from planlabel.deciders.openrouter import OpenRouterDecider
-    from planlabel.sources.arcgis import ArcGISSource
+    from planlabel.sources.arcgis import ArcGISSource, LayeredSource
 
     base = {
         "model1_provider": "gemini",
@@ -406,7 +406,10 @@ def test_build_app_wires_real_components_from_settings(tmp_path, monkeypatch):
     assert (svc.deciders[1].tracker.rpm, svc.deciders[1].tracker.rpd) == (200, 10000)
     assert isinstance(svc.advisor, GeminiAdvisor)
     assert [s.name for s in svc._rotation.sources] == ["abp", "eplanning"]
-    assert all(isinstance(s, ArcGISSource) for s in svc._rotation.sources)
+    abp, epl = svc._rotation.sources
+    assert isinstance(abp, ArcGISSource)
+    assert isinstance(epl, LayeredSource)
+    assert [layer.config.source_layer for layer in epl.layers] == ["epl_0", "epl_1"]
 
     swapped = build_app(
         Settings(

@@ -19,7 +19,7 @@ from planlabel.config import Settings
 from planlabel.models import Label
 from planlabel.repository import DuplicateError, Repository
 from planlabel.service import Decider, LabelingService, NoApplicationAvailable, UnknownToken
-from planlabel.sources.arcgis import FIELD_MAP, ArcGISSource
+from planlabel.sources.arcgis import FIELD_MAP, ArcGISSource, LayeredSource
 from planlabel.sources.registry import Source
 from planlabel.translator import TranslationError, Translator, make_translator
 from planlabel.usage import PACIFIC, UTC_ZONE, QuotaTracker
@@ -179,7 +179,13 @@ def build_app(settings: Settings | None = None) -> FastAPI:
     client = httpx.Client(headers={"User-Agent": "planlabel/0.1"})
     sources = [
         ArcGISSource(FIELD_MAP["abp"], client, ttl_s=settings.ids_ttl_s),
-        ArcGISSource(FIELD_MAP["eplanning"], client, ttl_s=settings.ids_ttl_s),
+        LayeredSource(
+            "eplanning",
+            [
+                ArcGISSource(FIELD_MAP["eplanning"], client, ttl_s=settings.ids_ttl_s),
+                ArcGISSource(FIELD_MAP["eplanning_1"], client, ttl_s=settings.ids_ttl_s),
+            ],
+        ),
     ]
     deciders = {
         1: _make_decider(1, settings.model1_provider, settings.model1_id, settings, repo, client),

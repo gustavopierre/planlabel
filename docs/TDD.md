@@ -68,6 +68,7 @@ Fixtures-chave (`tests/conftest.py`):
 | A-05 | normaliza texto (strip, colapsa espaços) |
 | A-06 | `fetch` de registro sem descrição → `None` (inválido) |
 | A-10 | `fetch` preenche `application_url` com `LINKABPWEB`/`LinkAppDetails`; link vazio → `''`; `http://` é aceito; `outFields` nunca contém campos `Applicant*` |
+| A-11 | `LayeredSource`: junta as camadas 0 e 1 numa visão sem cópia, sem colisão de IDs (`oid × n + camada`); `fetch` vai à camada certa e grava `epl_1`; uma camada fora do ar não impede a outra; as duas fora → `SourceError`; `FIELD_MAP["eplanning_1"]` sem campos `Applicant*`; `build_app` liga `abp` + `LayeredSource(epl_0, epl_1)` |
 | A-07 | corpo `{"error": ...}` com HTTP 200 → `SourceError` |
 | A-08 | 503 duas vezes e 200 na terceira → sucesso (retry); 4 falhas → `SourceError` |
 | A-09 | timeout → `SourceError` |
@@ -218,7 +219,7 @@ Fixtures-chave (`tests/conftest.py`):
 
 | Requisito | Testes |
 |---|---|
-| RF-01 | S-01, S-12, A-03 |
+| RF-01 | S-01, S-12, A-03, A-11 |
 | RF-02 / RF-03 | S-02, I-14, R-02 |
 | RF-04 | M-06, A-06, S-03 |
 | RF-23 | A-10, M-06, R-09, I-03, I-13, E-19 |

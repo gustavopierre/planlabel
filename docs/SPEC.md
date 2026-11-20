@@ -53,10 +53,11 @@ em qualquer potência); outras fontes (biomassa, diesel etc.) são sempre `low_e
 |---|---|---|---|---|---|---|
 | `abp` | `abp_3` | `https://services-eu1.arcgis.com/o56BSnENmD5mYs3j/ArcGIS/rest/services/Cases_2016_Onwards/FeatureServer/3` | `ABPCASEID` | `DEVDESC` | `PLANINGATY` | `LINKABPWEB` |
 | `eplanning` | `epl_0` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
+| `eplanning` | `epl_1` | `https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1` | `ApplicationNumber` | `DevelopmentDescription` | `PlanningAuthority` | `LinkAppDetails` |
 
 `source` é a **fonte** (ABP ou ePlanning) e entra na chave de duplicata; `source_layer` é a
-camada de onde o registro veio, só para rastreio. A camada 1 do ePlanning
-(`.../FeatureServer/1`, `epl_1`, polígonos) **não** é usada (decisão abaixo).
+camada de onde o registro veio, só para rastreio. As camadas 0 e 1 do ePlanning formam
+**uma só fonte** no rodízio (`LayeredSource`, decisão abaixo).
 
 **Verificado na T00 (2026-11-19, VPS 2)** — esquemas em `tests/fixtures/arcgis/*_layer.json`:
 - `abp` — "Cases", polígonos, 27 310 registros, `OBJECTID` como OID, `maxRecordCount` 2000.
@@ -76,8 +77,9 @@ O mapeamento fica num dicionário `FIELD_MAP` em `planlabel/sources/arcgis.py`; 
 nome de campo aparece em outro lugar do código. Sem link → `application_url` vazio (`''`),
 sem bloquear a rotulagem.
 
-**Decisão: só a camada 0 do ePlanning** (2026-11-19). Comparação completa feita na T00
-(conselho + número normalizados, todas as linhas das duas camadas):
+**Decisão: camadas 0 e 1 do ePlanning juntas, como uma fonte** (2026-11-20, pedido do dono;
+até então só a camada 0). Comparação completa feita na T00 (conselho + número normalizados,
+todas as linhas das duas camadas):
 
 | | camada 0 (pontos) | camada 1 (polígonos) |
 |---|---|---|
@@ -89,8 +91,18 @@ sem bloquear a rotulagem.
 
 O dono pediu que uma aplicação já no banco nunca seja rotulada de novo dentro da mesma fonte,
 mesmo vinda de outra camada. Por isso a chave de duplicata usa a fonte (`eplanning`), não a
-camada: se a camada 1 for acrescentada no futuro, nada se repete. A comparação é dentro de
+camada: uma aplicação que está nas duas camadas é rotulada uma vez só. A comparação é dentro de
 cada fonte (ABP com ABP, ePlanning com ePlanning), nunca entre ABP e ePlanning.
+
+**Como as camadas viram uma fonte** (`LayeredSource` em `planlabel/sources/arcgis.py`):
+- `list_ids()` junta as listas das camadas numa **visão sem cópia**; os OBJECTIDs se repetem
+  entre camadas, então o ID da visão é `oid × 2 + camada` (`fetch` decodifica e pede à camada
+  certa). Grava-se o `oid` real em `source_object_id` e a camada em `source_layer`.
+- O rodízio continua `abp → eplanning → abp …`: a camada 1 **não** ganha vez própria. Cada
+  sorteio do ePlanning cai em qualquer uma das 1 025 484 entradas (≈ metade em cada camada).
+- Uma camada fora do ar é ignorada enquanto a outra responder; as duas fora → `SourceError`.
+- Custo medido (2026-11-20, VPS 2): +26 MB de memória e +0,2 s na carga da lista (a camada 0
+  sozinha: 48 MB). Ganho: as 11 aplicações que só existem na camada 1.
 
 **A chave inclui o conselho, não só o número:** 19 932 números de aplicação existem em mais
 de um conselho (ex.: `2360178` aparece em 19 conselhos). Os formatos variam por conselho

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 import httpx
@@ -48,6 +48,16 @@ FIELD_MAP: dict[str, LayerConfig] = {
         source="eplanning",
         source_layer="epl_0",
         url="https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/0",
+        number_field="ApplicationNumber",
+        description_field="DevelopmentDescription",
+        authority_field="PlanningAuthority",
+        link_field="LinkAppDetails",
+    ),
+    # Camada 1 (polígonos): quase as mesmas aplicações da 0; entra na mesma fonte `eplanning`.
+    "eplanning_1": LayerConfig(
+        source="eplanning",
+        source_layer="epl_1",
+        url="https://services.arcgis.com/NzlPQPKn5QF9v2US/ArcGIS/rest/services/IrishPlanningApplications/FeatureServer/1",
         number_field="ApplicationNumber",
         description_field="DevelopmentDescription",
         authority_field="PlanningAuthority",
@@ -185,3 +195,67 @@ class ArcGISSource:
             )
         except ValidationError:
             return None
+
+
+class _LayeredIds(Sequence[int]):
+    """Visão (sem cópia) das listas de IDs das camadas: item k = oid * n + camada."""
+
+    def __init__(self, parts: list[list[int] | None]) -> None:
+        self._n = len(parts)
+        self._parts = [(i, p) for i, p in enumerate(parts) if p]
+        self._len = sum(len(p) for _, p in self._parts)
+
+    def __len__(self) -> int:
+        return self._len
+
+    def __getitem__(self, k):  # type: ignore[override]
+        if isinstance(k, slice):
+            return [self[j] for j in range(*k.indices(self._len))]
+        if k < 0:
+            k += self._len
+        if not 0 <= k < self._len:
+            raise IndexError(k)
+        for i, p in self._parts:
+            if k < len(p):
+                return p[k] * self._n + i
+            k -= len(p)
+        raise IndexError(k)  # pragma: no cover
+
+
+class LayeredSource:
+    """Várias camadas da mesma fonte vistas como UMA fonte no rodízio (SPEC §2).
+
+    Os OBJECTIDs se repetem entre camadas, então cada ID é codificado como
+    `oid * n_camadas + índice_da_camada`. A duplicata entre camadas é barrada pela chave
+    fonte + conselho + número no banco. Camada fora do ar é ignorada enquanto outra servir.
+    """
+
+    def __init__(self, name: str, layers: list) -> None:
+        if not layers or any(layer.name != name for layer in layers):
+            raise ValueError("todas as camadas precisam ser da fonte " + name)
+        self.name = name
+        self.layers = list(layers)
+        self._key: tuple | None = None
+        self._ids: Sequence[int] = []
+
+    def list_ids(self) -> Sequence[int]:
+        parts: list[list[int] | None] = []
+        last: SourceError | None = None
+        for layer in self.layers:
+            try:
+                parts.append(layer.list_ids())
+            except SourceError as exc:
+                log.warning("%s: camada fora do ar: %s", self.name, exc)
+                parts.append(None)
+                last = exc
+        if all(p is None for p in parts):
+            raise SourceError(f"{self.name}: nenhuma camada respondeu") from last
+        key = tuple((id(p), len(p)) if p is not None else None for p in parts)
+        if key != self._key:
+            self._ids = _LayeredIds(parts)
+            self._key = key
+        return self._ids
+
+    def fetch(self, object_id: int) -> Application | None:
+        n = len(self.layers)
+        return self.layers[object_id % n].fetch(object_id // n)

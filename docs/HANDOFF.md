@@ -34,7 +34,7 @@ Documentos, na ordem de leitura:
 ## 3. Estado atual
 
 - **Implementado e testado (T00–T10, T12 preparada):** app completo no `develop`.
-  190 testes verdes sem rede (unidade, integração e 19 E2E no Chromium), cobertura 95 %,
+  196 testes verdes sem rede (unidade, integração e 19 E2E no Chromium), cobertura 97 %,
   `ruff` limpo; 11 testes live contra as fontes e os modelos reais verdes em 2026-11-19.
 - **Rodar na VPS 2:** `source .venv/bin/activate && python -m planlabel` e túnel SSH
   (`ssh -L 8000:127.0.0.1:8000 dev-vps`) → <http://localhost:8000>. O `.env` já tem as chaves
@@ -45,8 +45,9 @@ Documentos, na ordem de leitura:
     perguntas `choice` e **probabilidade calibrada por opção**. O app faz duas perguntas
     independentes por modelo (subcategoria e categoria).
   - `gemini-2.5-flash-lite` não está disponível para usuários novos → Dúvida usa `gemini-3.5-flash-lite`.
-  - ePlanning: camadas 0 e 1 são quase as mesmas aplicações → só a camada 0; a chave de
-    duplicata usa a fonte (`eplanning`), não a camada. A lista de IDs é pedida por faixas
+  - ePlanning: camadas 0 e 1 são quase as mesmas aplicações → entram juntas como **uma**
+    fonte (`LayeredSource`, 2026-11-20); a chave de duplicata usa a fonte (`eplanning`), não a
+    camada, então a mesma aplicação nunca é rotulada duas vezes. A lista de IDs é pedida por faixas
     de `OBJECTID` (o ArcGIS corta em 400 000 e devolve um subconjunto arbitrário).
   - Google Translate não oficial bloqueia o IP da VPS → reserva automática MyMemory.
 - **Falta:** publicar o teste na VPS 3 (dono, depois da credencial OAuth) e o backup do SQLite.
