@@ -1,0 +1,27 @@
+{
+ "subcategory": {
+  "type": "choice",
+  "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Which subcategory best describes the main purpose of this development?",
+  "criteria": {
+   "hybrid": "Two or more of wind / solar / battery storage in the same application, 1 MW or more in total.",
+   "wind": "Wind turbines or a wind farm (onshore or offshore) of 1 MW or more: installation of N turbines, permission or extension of permission for N turbines, turbine replacement (repowering), extensions.",
+   "solar": "Ground-mounted solar PV installation (solar farm) of 1 MW or more.",
+   "bess": "Battery energy storage system as the main development, any size.",
+   "hydro": "Hydroelectric generation, any size.",
+   "substation": "Electricity substation (new or upgraded) serving the grid or generation.",
+   "energy_support": "Construction works that give relevant support to energy projects: national roads, electricity cables to substations, substation extensions to serve wind or solar farms (ground-mounted solar). It must be a construction work; the wind or solar farm itself is wind or solar.",
+   "leu": "Large energy user: factories, industrial complexes, housing developments of 200 or more homes in a single application.",
+   "data_centre": "Data centre.",
+   "not_energy": "Everything else, including fences, car parks, buildings that are not substations, depots and warehouses, even when they are part of a wind farm, a solar farm or a large energy user.",
+   "low_energy": "Low energy: wind / solar / hybrid under 1 MW; housing schemes of fewer than 200 homes; generation from other sources (biomass, diesel, gas, CHP, etc.) of any size; small substations inside houses, schools or supermarkets; rooftop solar panels; electric vehicle charging points."
+  }
+ },
+ "category": {
+  "type": "choice",
+  "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Is this an energy development?",
+  "criteria": {
+   "energy": "Energy development: hybrid, wind, solar, battery storage, hydro, substation, construction works supporting energy projects, large energy user or data centre.",
+   "not_energy": "Not an energy development, or only low energy (small renewables under 1 MW, fewer than 200 homes, other generation sources, rooftop solar, EV chargers)."
+  }
+ }
+}

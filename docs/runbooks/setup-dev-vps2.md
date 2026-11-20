@@ -17,7 +17,7 @@
 | Repositório | `https://github.com/gustavopierre/planlabel` |
 | Pasta do projeto | `~/dev/planlabel` |
 | Python | 3.12 ou mais novo |
-| Hosts que precisam responder | `services-eu1.arcgis.com`, `services.arcgis.com`, `generativelanguage.googleapis.com`, `github.com`, `pypi.org` |
+| Hosts que precisam responder | `services-eu1.arcgis.com`, `services.arcgis.com`, `generativelanguage.googleapis.com`, `openrouter.ai`, `github.com`, `pypi.org` |
 
 ## Parte 1 — Entrar e conferir o sistema
 
@@ -143,9 +143,21 @@ O `uv` instala a versão certa do Python sem depender da versão do Ubuntu.
     Conteúdo:
 
     ```dotenv
-    GEMINI_API_KEY=<sua chave>
-    PLANLABEL_SUGGESTER_MODEL=gemini-decision-1
+    GEMINI_API_KEY=<sua chave do AI Studio>
+    OPENROUTER_API_KEY=<sua chave do OpenRouter>
+    PLANLABEL_MODEL1_PROVIDER=gemini
+    PLANLABEL_MODEL1_ID=gemini-decision-1
+    PLANLABEL_MODEL2_PROVIDER=openrouter
+    PLANLABEL_MODEL2_ID=typesafe/jev-1.14
+    PLANLABEL_ADVISOR_ID=gemini-3.5-flash-lite
     ```
+
+    As chaves e os dois modelos são obrigatórios (o app não sobe sem os modelos). As outras
+    variáveis (SPEC §7: limites, tradutor, banco, porta) já têm o padrão certo no código e só
+    entram no `.env` se você quiser mudar algum valor.
+
+    Sem aspas, sem espaços em volta do `=`. A chave do OpenRouter é criada em
+    <https://openrouter.ai/settings/keys>.
 
     ```bash
     chmod 600 .env
@@ -158,7 +170,7 @@ O `uv` instala a versão certa do Python sem depender da versão do Ubuntu.
     ```
 
     Se não aparecer, anote o nome que aparece e informe na sessão (a SPEC usa
-    `PLANLABEL_SUGGESTER_MODEL` justamente para isso).
+    `PLANLABEL_MODEL1_ID` justamente para isso).
 
 ## Parte 7 — Claude Code
 
@@ -218,7 +230,7 @@ O `uv` instala a versão certa do Python sem depender da versão do Ubuntu.
 - [ ] `gh auth status` mostra a conta logada; `git push` funciona.
 - [ ] Repositório em `~/dev/planlabel`, no branch `develop`.
 - [ ] As três chamadas ArcGIS devolvem `"count"`.
-- [ ] `.env` com `GEMINI_API_KEY`, `chmod 600`; o modelo `gemini-decision-1` aparece na lista.
+- [ ] `.env` com `GEMINI_API_KEY` e `OPENROUTER_API_KEY`, `chmod 600`; o modelo `gemini-decision-1` aparece na lista.
 - [ ] Claude Code instalado e logado; Google Drive visível em `/mcp` (ou pendência anotada).
 - [ ] Porta 8000 **não** aberta no firewall (`sudo ufw status` não lista 8000).
 
@@ -228,7 +240,7 @@ O `uv` instala a versão certa do Python sem depender da versão do Ubuntu.
 |---|---|---|
 | `curl` ArcGIS volta `{"error":...}` | Camada mudou de número ou de esquema | Anotar a resposta e informar na T00; ajustar `FIELD_MAP` e a SPEC |
 | `curl` Gemini dá erro de conexão | Firewall de saída ou DNS da VPS | `curl -v https://generativelanguage.googleapis.com`; checar regras do provedor |
-| Modelo não aparece na lista | Nome diferente ou chave sem acesso ao modelo | Usar o nome listado em `PLANLABEL_SUGGESTER_MODEL`; conferir o projeto da chave no AI Studio |
+| Modelo não aparece na lista | Nome diferente ou chave sem acesso ao modelo | Usar o nome listado em `PLANLABEL_MODEL1_ID` (ou `PLANLABEL_MODEL2_ID` para o jev); conferir o projeto da chave no AI Studio |
 | `playwright install --with-deps` falha | Ubuntu muito novo para o script de dependências | Rodar `playwright install chromium` e instalar as libs indicadas no erro com `apt` |
 | `git push` pede senha | `gh auth setup-git` não rodou | Passo 7 |
 | Claude Code sem Google Drive | Conectores do claude.ai não carregados nessa conta/sessão | Seguir sem Drive; a memória é gravada localmente e copiada depois |

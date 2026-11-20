@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan Labeler</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main id="app">
+  <header class="top">
+    <h1>Plan Labeler</h1>
+    <div class="stats" id="stats">—</div>
+  </header>
+  <div class="quotas" id="quotas" aria-label="Uso dos modelos hoje"></div>
+  <hr>
+
+  <section id="loading" class="status">Buscando…</section>
+
+  <section id="error" class="status error" hidden>
+    <p id="error-text"></p>
+    <button type="button" id="retry">Tentar de novo</button>
+  </section>
+
+  <section id="ended" class="status" hidden>
+    <p id="ended-text"></p>
+    <button type="button" id="restart">Recomeçar</button>
+  </section>
+
+  <section id="work" hidden>
+    <div class="meta">
+      <span id="app-meta"></span>
+      <a id="app-link" target="_blank" rel="noopener noreferrer" hidden>abrir aplicação ↗</a>
+    </div>
+    <p class="description" id="description"></p>
+    <div class="row-end">
+      <span class="inline-msg" id="translate-msg"></span>
+      <button type="button" id="translate" title="Atalho: T">Traduzir</button>
+    </div>
+
+    <div class="panels">
+      <article class="panel" id="panel-1" data-slot="1"></article>
+      <article class="panel" id="panel-2" data-slot="2"></article>
+    </div>
+
+    <fieldset class="choice">
+      <legend>Sua decisão <span class="badge" id="badge"></span></legend>
+      <div class="choice-row">
+        <span class="choice-label">Categoria</span>
+        <div id="categories" class="options"></div>
+      </div>
+      <div class="choice-row">
+        <span class="choice-label">Subcategoria</span>
+        <div id="subcategories" class="options"><span class="hint">escolha a categoria primeiro</span></div>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="button" id="doubt" title="Atalho: D">Dúvida</button>
+      <button type="button" id="cancel" title="Atalho: Esc">Cancelar</button>
+      <button type="button" id="confirm" class="primary" title="Atalho: Enter" disabled>Confirmar</button>
+    </div>
+    <p class="inline-msg" id="action-msg"></p>
+    <div class="opinion" id="opinion" hidden></div>
+  </section>
+
+  <dialog id="cancel-dialog">
+    <p>O que fazer com esta aplicação? Nada será gravado.</p>
+    <form method="dialog" class="actions">
+      <button value="end" id="dialog-end">Encerrar</button>
+      <button value="next" id="dialog-next" class="primary">Próxima</button>
+    </form>
+  </dialog>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+ "request": {
+  "model": "gemini-decision-1",
+  "input": "Permission for a 10 year planning permission for a wind farm development comprising 7 no. wind turbines with a maximum tip height of 150m, an electricity substation, underground cabling and all associated site works.",
+  "questions": {
+   "subcategory": {
+    "type": "choice",
+    "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Which subcategory best describes the main purpose of this development?",
+    "criteria": {
+     "hybrid": "Two or more of wind / solar / battery storage in the same application, 1 MW or more in total.",
+     "wind": "Wind turbines or wind farm of 1 MW or more: installation of N turbines, permission or extension of permission for N turbines, turbine replacement (repowering), extensions.",
+     "solar": "Ground-mounted solar PV installation (solar farm) of 1 MW or more.",
+     "bess": "Battery energy storage system as the main development, any size.",
+     "hydro": "Hydroelectric generation, any size.",
+     "substation": "Electricity substation (new or upgraded) serving the grid or generation.",
+     "energy_support": "Construction works giving relevant support to energy projects: national roads, electricity cables to substations, substation extensions to serve wind or solar farms. Must be a construction work.",
+     "leu": "Large energy user: factory, industrial complex, or housing development of 200 or more homes in one application.",
+     "data_centre": "Data centre.",
+     "low_energy": "Wind/solar/hybrid under 1 MW; fewer than 200 homes; generation from other sources (biomass, diesel, gas, CHP) of any size; small substations in houses, schools or supermarkets; rooftop solar panels; EV charging points.",
+     "not_energy": "Everything else, including fences, car parks, buildings that are not substations, depots and warehouses, even when part of a wind farm, solar farm or large energy user."
+    }
+   },
+   "category": {
+    "type": "choice",
+    "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Is this an energy development?",
+    "criteria": {
+     "energy": "The development is an energy development (generation, storage, grid, energy support works, large energy user or data centre).",
+     "not_energy": "The development is not an energy development, or is only low energy."
+    }
+   }
+  }
+ },
+ "response": {
+  "answers": {
+   "category": {
+    "confidence": 0.9990826128527074,
+    "choice": "energy",
+    "probabilities": {
+     "not_energy": 0.0009173871472925455,
+     "energy": 0.9990826128527074
+    },
+    "type": "choice"
+   },
+   "subcategory": {
+    "confidence": 0.9932426545734271,
+    "choice": "wind",
+    "probabilities": {
+     "energy_support": 0.0008842398042607432,
+     "hydro": 1.8449088974864476e-05,
+     "solar": 0.000250115267619625,
+     "substation": 0.004428904979135005,
+     "wind": 0.9932426545734271,
+     "hybrid": 0.0004445253328848304,
+     "leu": 0.00021308705310267847,
+     "data_centre": 3.4087781888729354e-05,
+     "bess": 7.950659368396436e-05,
+     "not_energy": 5.41225931008112e-05,
+     "low_energy": 0.0003503069319217306
+    },
+    "type": "choice"
+   }
+  },
+  "usage": {
+   "total_tokens": 647,
+   "total_input_tokens": 647,
+   "input_tokens_by_modality": [
+    {
+     "modality": "text",
+     "tokens": 647
+    }
+   ],
+   "total_output_tokens": 0
+  }
+ },
+ "_note": "chamada real na T00, 2026-11-19, HTTP 200"
+}

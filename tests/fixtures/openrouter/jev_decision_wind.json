@@ -1,0 +1,79 @@
+{
+ "request": {
+  "model": "typesafe/jev-1.14",
+  "state": "Permission for a 10 year planning permission for a wind farm development comprising 7 no. wind turbines with a maximum tip height of 150m, an electricity substation, underground cabling and all associated site works.",
+  "questions": {
+   "subcategory": {
+    "type": "choice",
+    "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Which subcategory best describes the main purpose of this development?",
+    "criteria": {
+     "hybrid": "Two or more of wind / solar / battery storage in the same application, 1 MW or more in total.",
+     "wind": "Wind turbines or wind farm of 1 MW or more: installation of N turbines, permission or extension of permission for N turbines, turbine replacement (repowering), extensions.",
+     "solar": "Ground-mounted solar PV installation (solar farm) of 1 MW or more.",
+     "bess": "Battery energy storage system as the main development, any size.",
+     "hydro": "Hydroelectric generation, any size.",
+     "substation": "Electricity substation (new or upgraded) serving the grid or generation.",
+     "energy_support": "Construction works giving relevant support to energy projects: national roads, electricity cables to substations, substation extensions to serve wind or solar farms. Must be a construction work.",
+     "leu": "Large energy user: factory, industrial complex, or housing development of 200 or more homes in one application.",
+     "data_centre": "Data centre.",
+     "low_energy": "Wind/solar/hybrid under 1 MW; fewer than 200 homes; generation from other sources (biomass, diesel, gas, CHP) of any size; small substations in houses, schools or supermarkets; rooftop solar panels; EV charging points.",
+     "not_energy": "Everything else, including fences, car parks, buildings that are not substations, depots and warehouses, even when part of a wind farm, solar farm or large energy user."
+    }
+   },
+   "category": {
+    "type": "choice",
+    "instructions": "This is an Irish planning application description. Descriptions rarely say 'wind farm' or 'solar farm': a wind farm appears as 'N turbines', permission for X years for N turbines, tip height changes; a solar farm appears as ground-mounted solar PV panels or arrays, hectares of panels. Is this an energy development?",
+    "criteria": {
+     "energy": "The development is an energy development (generation, storage, grid, energy support works, large energy user or data centre).",
+     "not_energy": "The development is not an energy development, or is only low energy."
+    }
+   }
+  }
+ },
+ "response": {
+  "model": "typesafe/jev-1.14-20261014",
+  "answers": {
+   "subcategory": {
+    "type": "choice",
+    "choice": "wind",
+    "probabilities": {
+     "hybrid": 0,
+     "wind": 1,
+     "solar": 0,
+     "bess": 0,
+     "hydro": 0,
+     "substation": 0,
+     "energy_support": 0,
+     "leu": 0,
+     "data_centre": 0,
+     "low_energy": 0,
+     "not_energy": 0
+    },
+    "confidence": 1
+   },
+   "category": {
+    "type": "choice",
+    "choice": "energy",
+    "probabilities": {
+     "energy": 1,
+     "not_energy": 0
+    },
+    "confidence": 1
+   }
+  },
+  "usage": {
+   "input_tokens": 946,
+   "output_tokens": 136,
+   "cost": 3.9732e-05,
+   "is_byok": false,
+   "cost_details": {
+    "upstream_inference_cost": 3.9732e-05,
+    "upstream_inference_prompt_cost": 3.9732e-05,
+    "upstream_inference_completions_cost": 0
+   }
+  },
+  "id": "gen-dec-1795125587-vCZTGKklKbgIIv2SeT47",
+  "provider": "TypeSafe"
+ },
+ "_note": "chamada real na T00, 2026-11-19, HTTP 200"
+}

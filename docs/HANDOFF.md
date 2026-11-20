@@ -1,6 +1,6 @@
 # Handoff — Plan Labeler
 
-**Data:** 2026-11-19 · **De:** sessão Claude Code na nuvem (branch `claude/dreamy-allen-tnqmnq`) · **Para:** desenvolvimento na **VPS 2** (VPS de desenvolvimento)
+**Atualizado:** 2026-11-19 (noite) · **Por:** sessão Claude Code na **VPS 2** (branch `develop`) · **Para:** o dono e a próxima sessão
 
 Leia este arquivo primeiro. Ele diz onde o projeto parou, o que falta e como continuar.
 Os detalhes ficam nos documentos linkados.
@@ -9,19 +9,22 @@ Os detalhes ficam nos documentos linkados.
 
 Web app minimalista (backend Python/FastAPI, SQLite, frontend HTML/CSS/JS puro) que mostra
 **uma** planning application irlandesa por vez (An Bord Pleanála + ePlanning, via ArcGIS),
-pré-preenche o rótulo com a sugestão do modelo Google **`gemini-decision-1`** e grava no
-banco **só depois que o usuário confirma**: energia True/False e, se energia, a categoria
-`hybrid | wind | solar | bess | leu`. O banco vira dataset para treino e fine-tuning de IA.
+mostra a decisão de dois modelos — **`gemini-decision-1`** (API Gemini) e
+**`typesafe/jev-1.14`** (OpenRouter) — com o percentual de cada subcategoria e categoria,
+oferece o botão **Dúvida** (`gemini-3.5-flash-lite`) e grava no banco **só depois que o
+usuário confirma**: a categoria e depois uma subcategoria dela (`energy`: `hybrid | wind |
+solar | bess | hydro | substation | energy_support | leu | data_centre`; `not_energy`:
+`not_energy | low_energy`), mais o link da aplicação.
+O banco vira dataset para treino e fine-tuning de IA.
 
 ## 2. Onde está tudo
 
 | O quê | Onde |
 |---|---|
 | Repositório | <https://github.com/gustavopierre/planlabel> (antes `generator_plan_app_data_for_training`; a URL antiga redireciona) |
-| Branch padrão | `main` |
-| Último commit revisado | `5eb2ac1` (`main` = `claude/dreamy-allen-tnqmnq` nesse ponto) |
+| Branches | `main` (só docs até `2ad7399`) · **`develop`** (todo o código; é o que a VPS 3 publica) |
 | Memória das conversas | Google Drive › `Claude_Memoria/generator_plan_app_data_for_training/` (índice do projeto + uma `.md` por sessão) |
-| Ambiente de teste (futuro) | `https://planlabel-test.bundoran.tech` na **VPS 3**, com login Google (oauth2-proxy) |
+| Ambiente de teste (preparado, não publicado) | `https://planlabel-test.bundoran.tech` na **VPS 3**, com login Google (oauth2-proxy) — [runbook deploy-vps3](runbooks/deploy-vps3.md) |
 | Infra das VPS | projeto `vps_infra` (repositório `gustavopierre/vps-infra`, memória `Claude_Memoria/vps_infra/`) |
 
 Documentos, na ordem de leitura:
@@ -30,26 +33,33 @@ Documentos, na ordem de leitura:
 
 ## 3. Estado atual
 
-- **Pronto:** documentação completa (PRD, arquitetura, SPEC, catálogo de testes, tarefas
-  T00–T12, GO prompt com critério C1–C15, runbook do OAuth).
-- **Não iniciado:** **nenhuma linha de código**. Nenhuma tarefa do `GO_PROMPT.md` começou;
-  não existe `pyproject.toml` nem a pasta `planlabel/`.
-- **Verificado:** a camada An Bord Pleanála (`services-eu1.arcgis.com`, FeatureServer/3)
-  responde: 27 310 registros, campos `ABPCASEID`, `DEVDESC`, `PLANINGATY`, `CATEGORY`;
-  `returnIdsOnly=true` devolve todos os IDs numa resposta.
-- **Não verificado:** as camadas ePlanning `IrishPlanningApplications/FeatureServer/0` e `/1`
-  (`services.arcgis.com`) e o modelo `gemini-decision-1`. O container da nuvem bloqueava
-  esses hosts. Os campos do ePlanning na SPEC vêm da skill `ireland-planning-gis`; a
-  camada 0 foi presumida por analogia. **A T00 confirma tudo isso, e a VPS 2 deve conseguir.**
+- **Implementado e testado (T00–T10, T12 preparada):** app completo no `develop`.
+  196 testes verdes sem rede (unidade, integração e 19 E2E no Chromium), cobertura 97 %,
+  `ruff` limpo; 11 testes live contra as fontes e os modelos reais verdes em 2026-11-19.
+- **Rodar na VPS 2:** `source .venv/bin/activate && python -m planlabel` e túnel SSH
+  (`ssh -L 8000:127.0.0.1:8000 dev-vps`) → <http://localhost:8000>. O `.env` já tem as chaves
+  e os modelos.
+- **Achados da T00 que mudaram a SPEC:**
+  - `gemini-decision-1` e `typesafe/jev-1.14` são **modelos de decisão** (não geram texto):
+    `POST /v1beta/decisions` (Google) e `POST /api/alpha/decisions` (OpenRouter), com
+    perguntas `choice` e **probabilidade calibrada por opção**. O app faz duas perguntas
+    independentes por modelo (subcategoria e categoria).
+  - `gemini-2.5-flash-lite` não está disponível para usuários novos → Dúvida usa `gemini-3.5-flash-lite`.
+  - ePlanning: camadas 0 e 1 são quase as mesmas aplicações → entram juntas como **uma**
+    fonte (`LayeredSource`, 2026-11-20); a chave de duplicata usa a fonte (`eplanning`), não a
+    camada, então a mesma aplicação nunca é rotulada duas vezes. A lista de IDs é pedida por faixas
+    de `OBJECTID` (o ArcGIS corta em 400 000 e devolve um subconjunto arbitrário).
+  - Google Translate não oficial bloqueia o IP da VPS → reserva automática MyMemory.
+- **Falta:** publicar o teste na VPS 3 (dono, depois da credencial OAuth) e o backup do SQLite.
 
 ## 4. Decisões já tomadas (não reabrir)
 
 1. Python + FastAPI + `sqlite3` da stdlib; frontend sem framework e sem build.
-2. Busca aleatória por `OBJECTID` (lista de IDs em cache) → um registro por vez; descarta
-   o que já está no banco.
-3. Chave única `(source, planning_authority, application_number)`: `ApplicationNumber` se repete entre conselhos.
-4. **Nada é gravado sem a confirmação do usuário.** A sugestão do `gemini-decision-1` só
-   pré-preenche; a única rota que escreve no banco é `POST /api/labels`. Essa regra vale
+2. Rodízio de fontes (ABP → ePlanning, um rodízio só para todos); dentro da fonte, registro
+   aleatório por `OBJECTID`; descarta o que já está no banco. Puladas podem voltar.
+3. Chave única `(source, planning_authority, application_number)`: o número se repete entre conselhos (19 932 números em mais de um conselho).
+4. **Nada é gravado sem a confirmação do usuário.** As decisões dos modelos só sugerem;
+   a única rota que grava rótulos (`labeled_application`) é `POST /api/labels`; o contador de uso dos modelos (`model_usage`) é a única outra escrita. Essa regra vale
    na API e também nas `CHECK` constraints do SQLite.
 5. O registro em exibição fica na memória do servidor (com token); o cliente não forja dados.
 6. Teste na VPS 3 em `planlabel-test.bundoran.tech`, atrás do Caddy compartilhado
@@ -57,37 +67,36 @@ Documentos, na ordem de leitura:
 7. Sem pull requests: o trabalho vai direto no branch, e o `main` só é atualizado quando o dono pedir.
 8. Procedimentos operacionais viram **runbooks** em `docs/runbooks/`.
 9. Documentação em português; nomes técnicos em inglês.
+10. Taxonomia da SPEC §1.1 (categoria primeiro, subcategoria filtrada); rótulo humano nunca
+    contraditório; decisões dos modelos gravadas como vieram (`m1_model`/`m2_model` sempre
+    preenchidos, `m1_decision`/`m2_decision` em JSON ou NULL).
+11. Modelos obrigatórios no `.env`; pré-marcação só quando os dois modelos concordam.
 
-## 5. Pendências do dono (bloqueiam partes do trabalho)
+## 5. Pendências do dono
 
 | Pendência | Bloqueia | Como |
 |---|---|---|
-| Responder os **[DECIDIR]**: definições das categorias no prompt (solar + bateria conta como `hybrid`? data centre entra em `leu`?), gravar a sugestão no banco (RF-19), pesos do sorteio, tradutor, pulados | Texto final do prompt (SPEC §4.2) e schema | Responder na sessão; atualizar SPEC/ARCHITECTURE |
-| `GEMINI_API_KEY` | T00 (modelo), L-03, uso real da sugestão | Criar no Google AI Studio; guardar só no `.env` da VPS |
-| Credencial OAuth do Google | T12 (deploy de teste na VPS 3) | [runbook google-oauth-setup](runbooks/google-oauth-setup.md) |
-| Destino do backup do SQLite | T12 | Decidir; virará `runbooks/backup-sqlite.md` |
-
-Sem essas respostas é possível avançar em T01–T08 com os padrões propostos (o `GO_PROMPT`
-manda usar a opção proposta quando não houver decisão registrada).
+| Credencial OAuth do Google | Publicar o teste na VPS 3 | [runbook google-oauth-setup](runbooks/google-oauth-setup.md) e depois [deploy-vps3](runbooks/deploy-vps3.md) |
+| Limites do `gemini-3.5-flash-lite` no AI Studio | Ajuste fino do botão Dúvida (hoje 15/min, 25 000 tokens/min, 1 000/dia, valores do 2.5) | Conferir e ajustar `PLANLABEL_ADVISOR_*` no `.env` |
+| Destino do backup do SQLite | Produção | Decidir; virará `runbooks/backup-sqlite.md` |
+| Reinício da VPS 2 | Nada (kernel 7.0.0-44 instalado, rodando 7.0.0-38) | Reiniciar quando for conveniente |
+| Atualizar `main` | Nada | Só quando o dono pedir (`develop` → `main`) |
 
 ## 6. Como continuar na VPS 2
 
-1. Prepare a VPS 2 seguindo o [runbook setup-dev-vps2](runbooks/setup-dev-vps2.md).
-2. Na pasta do repositório, abra o Claude Code (`claude`).
-3. Primeira mensagem sugerida:
+1. `cd ~/dev/planlabel && git switch develop && git pull --ff-only && source .venv/bin/activate`
+2. `pytest` (deve dar tudo verde) e `python -m planlabel` para usar.
+3. Para uma sessão nova do Claude Code, primeira mensagem sugerida:
 
    > Leia `docs/HANDOFF.md` e a memória do projeto no Google Drive
    > (`Claude_Memoria/generator_plan_app_data_for_training/`, skill
-   > `project-conversation-memory`). Depois execute o `GO_PROMPT.md` a partir da T00.
-
-4. Trabalhe num branch de desenvolvimento (sugestão: `develop`, que é também o branch que a
-   VPS 3 vai publicar, pela convenção do `vps_infra`). Atualize o `main` só quando o dono pedir.
+   > `project-conversation-memory`).
 
 ## 7. Atenção
 
 - **Papel de cada VPS:** VPS 2 = desenvolvimento · VPS 3 = teste (`planlabel-test`) ·
   VPS 4 = produção pessoal · VPS 1 (Hermes) **não mexer** · VPS 5 = LO Engagement.
-- **Segredos** (`GEMINI_API_KEY`, segredos OAuth) só em `.env` com `chmod 600`; nunca em
+- **Segredos** (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, segredos OAuth) só em `.env` com `chmod 600`; nunca em
   commit, no chat ou em print.
 - **App na VPS 2:** fica em `127.0.0.1:8000` e é acessado por túnel SSH
   (`ssh -L 8000:127.0.0.1:8000 dev-vps`). Não abra a porta 8000 no firewall: o app não tem login.
