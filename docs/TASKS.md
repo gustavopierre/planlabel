@@ -19,4 +19,5 @@ tarefa segue a [definição de pronto](TDD.md#6-definição-de-pronto) (nível t
 | T09 | Testes live opcionais | L-01..L-05 (quando a rede/chave permitir) | T04, T06b, T06c |
 | T10 | `README.md` (instalar, rodar, testar, exportar), conferência do critério de conclusão | checklist do `GO_PROMPT.md` | T01..T08 |
 | T12 | Deploy de teste na VPS 3: `Dockerfile`, `docker-compose.edge.yml`, `.env.example`, `/healthz`; branch `develop`; container `planlabel-oauth2` (oauth2-proxy, Google) e bloco `forward_auth` no Caddyfile compartilhado; `emails.txt` com os e-mails autorizados (pré-requisito do dono: [runbook google-oauth-setup](runbooks/google-oauth-setup.md)); registrar no `vps_infra` | I-20, D-01..D-06 | T07, T08 |
+| T13 | Backup do SQLite: `planlabel/backup.py` (stdlib), `Dockerfile.backup`, serviço `planlabel-backup` no compose, runbook `backup-sqlite.md`; destino `gdrive:planlabel-test-backups` (conta dos backups do LO Engagement, decisão do dono 2026-11-20) | B-01..B-11 (B-12 no deploy) | T12 |
 | T11 | Atualizar memória da conversa no Google Drive (skill `project-conversation-memory`) | — | T10 |

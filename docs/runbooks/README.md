@@ -14,4 +14,4 @@ sessão de IA) sem precisar ler o resto da documentação.
 | [google-oauth-setup.md](google-oauth-setup.md) | Criar a credencial de login Google do oauth2-proxy e gravar os segredos na VPS 3 | Dono (Google Cloud Console + SSH na VPS 3) |
 | [setup-dev-vps2.md](setup-dev-vps2.md) | Preparar a VPS 2 (desenvolvimento): Python, GitHub, rede, `.env`, Claude Code, testes | Dono (SSH na VPS 2) |
 | [deploy-vps3.md](deploy-vps3.md) | Subir/atualizar o app de teste em `planlabel-test.bundoran.tech` e verificar D-01..D-06 | Dono (SSH na VPS 3; sessões de IA não rodam nada lá) |
-| `backup-sqlite.md` *(a criar)* | Backup e restauração do dataset SQLite da VPS 3 | Dono |
+| [backup-sqlite.md](backup-sqlite.md) | Ligar, testar e restaurar o backup diário do SQLite (VPS 3 → Google Drive) | Dono (SSH na VPS 3) |

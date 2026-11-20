@@ -1,6 +1,6 @@
 # Handoff — Plan Labeler
 
-**Atualizado:** 2026-11-19 (noite) · **Por:** sessão Claude Code na **VPS 2** (branch `develop`) · **Para:** o dono e a próxima sessão
+**Atualizado:** 2026-11-20 · **Por:** sessão Claude Code na **VPS 2** (branch `develop`) · **Para:** o dono e a próxima sessão
 
 Leia este arquivo primeiro. Ele diz onde o projeto parou, o que falta e como continuar.
 Os detalhes ficam nos documentos linkados.
@@ -50,7 +50,12 @@ Documentos, na ordem de leitura:
     camada, então a mesma aplicação nunca é rotulada duas vezes. A lista de IDs é pedida por faixas
     de `OBJECTID` (o ArcGIS corta em 400 000 e devolve um subconjunto arbitrário).
   - Google Translate não oficial bloqueia o IP da VPS → reserva automática MyMemory.
-- **Falta:** publicar o teste na VPS 3 (dono, depois da credencial OAuth) e o backup do SQLite.
+- **Backup do SQLite (T13, 2026-11-20):** container `planlabel-backup` no mesmo compose, todo dia
+  às 02:00 (Dublin) → `gdrive:planlabel-test-backups`, 60 dias, mesma conta Google dos backups do
+  LO Engagement (cópia do `rclone.conf` dele na VPS 3). Testado com rclone real (remote local);
+  falta ligar na VPS 3 — [runbook backup-sqlite](runbooks/backup-sqlite.md).
+- **Falta:** publicar o teste na VPS 3 (dono, depois da credencial OAuth), ligar o backup lá
+  e registrar os dois no `vps_infra`.
 
 ## 4. Decisões já tomadas (não reabrir)
 
@@ -71,6 +76,7 @@ Documentos, na ordem de leitura:
     contraditório; decisões dos modelos gravadas como vieram (`m1_model`/`m2_model` sempre
     preenchidos, `m1_decision`/`m2_decision` em JSON ou NULL).
 11. Modelos obrigatórios no `.env`; pré-marcação só quando os dois modelos concordam.
+12. Backup do SQLite no Google Drive da conta dos backups do LO Engagement (2026-11-20).
 
 ## 5. Pendências do dono
 
@@ -78,7 +84,7 @@ Documentos, na ordem de leitura:
 |---|---|---|
 | Credencial OAuth do Google | Publicar o teste na VPS 3 | [runbook google-oauth-setup](runbooks/google-oauth-setup.md) e depois [deploy-vps3](runbooks/deploy-vps3.md) |
 | Limites do `gemini-3.5-flash-lite` no AI Studio | Ajuste fino do botão Dúvida (hoje 15/min, 25 000 tokens/min, 1 000/dia, valores do 2.5) | Conferir e ajustar `PLANLABEL_ADVISOR_*` no `.env` |
-| Destino do backup do SQLite | Produção | Decidir; virará `runbooks/backup-sqlite.md` |
+| Ligar o backup na VPS 3 | Cópia fora do servidor do dataset de teste | [runbook backup-sqlite](runbooks/backup-sqlite.md) Partes 1–3, junto com o deploy |
 | Reinício da VPS 2 | Nada (kernel 7.0.0-44 instalado, rodando 7.0.0-38) | Reiniciar quando for conveniente |
 | Atualizar `main` | Nada | Só quando o dono pedir (`develop` → `main`) |
 

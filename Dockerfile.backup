@@ -1,0 +1,17 @@
+# Sidecar de backup do Plan Labeler (SPEC §9): SQLite → gzip → Google Drive via rclone.
+# Só stdlib: copia planlabel/backup.py sozinho. Mesmo UID do app (10001), para que os
+# arquivos -wal/-shm que o SQLite criar no volume continuem do usuário do app.
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends rclone ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --create-home planlabel
+
+COPY planlabel/backup.py /backup.py
+
+USER planlabel
+ENV PYTHONUNBUFFERED=1 \
+    PLANLABEL_DB_PATH=/app/data/labels.sqlite3 \
+    RCLONE_CONFIG=/config/rclone.conf
+CMD ["python", "/backup.py"]

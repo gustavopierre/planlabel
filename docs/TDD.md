@@ -215,6 +215,22 @@ Fixtures-chave (`tests/conftest.py`):
 | D-05 | `curl --max-time 5 http://31.97.113.166:8000/` e `:4180` falham (portas não publicadas) |
 | D-06 | `docker compose restart` não perde registros (volume persistente) |
 
+### 3.10 Backup (`tests/unit/test_backup.py`, rclone fake; SPEC §9)
+| ID | Caso |
+|---|---|
+| B-01 | cópia de banco em WAL com conexão aberta traz as linhas do `-wal` e passa no `integrity_check` |
+| B-02 | nome `planlabel_AAAA-MM-DD_HHMM.sqlite3.gz`, destino `<remote>/<nome>`, conteúdo gzip |
+| B-03 | `copyto` e depois `delete --min-age <retenção> <remote>`, com `--config`; temporários removidos |
+| B-04 | sem banco → `skip`, nenhuma chamada ao rclone |
+| B-05 | sem `rclone.conf` → `waiting`, nenhuma chamada ao rclone |
+| B-06 | falha no envio → `error`, sem marca de sucesso; falha só na poda → `ok` |
+| B-07 | `is_due`: só na hora configurada; uma vez por dia com folga de 2 h; sem marca → devido |
+| B-08 | sucesso grava `backup-last-ok` com o horário da execução |
+| B-09 | arquivo que não é SQLite → `error`, nada enviado |
+| B-10 | `Config.from_env` lê as variáveis e aplica os padrões |
+| B-11 | `--restore` troca o banco e guarda o anterior em `pre-restore-*`; falha ou nome inválido não mexe em nada |
+| B-12 | (manual, VPS 3) `python /backup.py --now` → `backup ok` e o arquivo aparece em `rclone lsl` (runbook backup-sqlite) |
+
 ## 4. Matriz de rastreabilidade
 
 | Requisito | Testes |
@@ -243,6 +259,7 @@ Fixtures-chave (`tests/conftest.py`):
 | RNF-03 | E-08 |
 | RNF-04 | cobertura no CI (`--cov-fail-under=90`) |
 | RNF-07 | I-20, D-01..D-06 |
+| RNF-08 | B-01..B-12 |
 
 ## 5. Comandos
 

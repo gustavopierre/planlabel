@@ -16,6 +16,8 @@ rodam nada na VPS 3: elas escrevem os comandos e o dono cola a saída.
 - [ ] Credencial OAuth criada e `/opt/planlabel/oauth2.env` + `/opt/planlabel/emails.txt`
       gravados: [runbook google-oauth-setup](google-oauth-setup.md), Partes 1–7.
 - [ ] `GEMINI_API_KEY` e `OPENROUTER_API_KEY` à mão (as mesmas da VPS 2 servem).
+- [ ] Credencial do Drive para o backup: [runbook backup-sqlite](backup-sqlite.md), Parte 1
+      (pode ser feita depois; sem ela o `planlabel-backup` só fica em espera).
 
 ## Valores que você vai usar
 
@@ -24,7 +26,7 @@ rodam nada na VPS 3: elas escrevem os comandos e o dono cola a saída.
 | SSH | `ssh deploy@31.97.113.166` |
 | Código | `/home/deploy/planlabel` (clone do branch `develop`; o repositório é público) |
 | Segredos | `/opt/planlabel/app.env` (app), `/opt/planlabel/oauth2.env` (login), `/opt/planlabel/emails.txt` |
-| Compose | `docker-compose.edge.yml` (projeto `planlabel-test`; containers `planlabel` e `planlabel-oauth2`) |
+| Compose | `docker-compose.edge.yml` (projeto `planlabel-test`; containers `planlabel`, `planlabel-oauth2` e `planlabel-backup`) |
 | Rede | `edge` (externa, já existe); apelidos `planlabel` e `planlabel-oauth2`; **nenhuma porta publicada** |
 | Dados | volume Docker `planlabel-test_planlabel_data` (SQLite em `/app/data/labels.sqlite3`) |
 
@@ -69,7 +71,7 @@ rodam nada na VPS 3: elas escrevem os comandos e o dono cola a saída.
    cd ~/planlabel && docker compose -f docker-compose.edge.yml up -d --build
    ```
 
-6. Espere uns 30 s e confira (os dois devem estar `running`; o `planlabel`, `healthy`):
+6. Espere uns 30 s e confira (os três devem estar `running`; o `planlabel`, `healthy`):
 
    ```bash
    docker compose -f docker-compose.edge.yml ps
@@ -191,6 +193,7 @@ cd ~/planlabel && docker compose -f docker-compose.edge.yml logs -f --tail 100 p
 - [ ] `docker compose ... ps`: `planlabel` healthy e `planlabel-oauth2` running.
 - [ ] Bloco no `/opt/edge/Caddyfile` validado e recarregado; cópia registrada no `vps_infra`.
 - [ ] D-01..D-06 conferidos.
+- [ ] Backup testado: [runbook backup-sqlite](backup-sqlite.md), Parte 3 (B-12).
 - [ ] `docker port planlabel-test-planlabel-1` e `docker port planlabel-test-planlabel-oauth2-1` não mostram nada.
 
 ## Problemas comuns

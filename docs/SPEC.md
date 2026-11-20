@@ -507,3 +507,35 @@ chave do seu provedor funciona sem decisões (painel "sem sugestão", `mN_decisi
 ## 8. Rastreabilidade requisito → teste
 
 Ver tabela em [TDD.md §4](TDD.md#4-matriz-de-rastreabilidade).
+
+## 9. Backup do SQLite (RNF-08)
+
+Container `planlabel-backup` (`Dockerfile.backup`, código `planlabel/backup.py`, só stdlib)
+no mesmo compose do app, montando o volume de dados e `/opt/planlabel/rclone` em `/config`.
+Roda com o UID do app (10001). Procedimento: [runbook backup-sqlite](runbooks/backup-sqlite.md).
+
+| Variável | Padrão |
+|---|---|
+| `PLANLABEL_DB_PATH` | `/app/data/labels.sqlite3` |
+| `BACKUP_REMOTE` | `gdrive:planlabel-test-backups` |
+| `BACKUP_HOUR` / `TZ` | `2` / `Europe/Dublin` (no compose) |
+| `BACKUP_RETENTION` | `60d` (sintaxe do `rclone --min-age`) |
+| `RCLONE_CONFIG` | `/config/rclone.conf` |
+
+Regras:
+
+1. **Agenda** (`is_due`): a cada 5 min; roda se a hora local é `BACKUP_HOUR` e o último
+   sucesso (`<pasta do banco>/backup-last-ok`, ISO 8601) tem mais de 22 h ou não existe.
+2. **Cópia:** `sqlite3.Connection.backup` (consistente com o app rodando, inclui o `-wal`) →
+   `PRAGMA integrity_check` = `ok` → gzip → `planlabel_AAAA-MM-DD_HHMM.sqlite3.gz`.
+3. **Envio:** `rclone --config C copyto <arquivo> <BACKUP_REMOTE>/<nome>`; depois
+   `rclone --config C delete --min-age <BACKUP_RETENTION> <BACKUP_REMOTE>`. Falha na poda não
+   falha o backup. Só um envio bem-sucedido grava `backup-last-ok`.
+4. **Estados:** `ok`; `skip` (banco ainda não existe); `waiting` (sem `rclone.conf`); `error`
+   (cópia, verificação ou envio falhou — nada é enviado de um banco inválido). Arquivos
+   temporários são sempre removidos.
+5. **Restauração** (`--restore <nome>`, app parado): baixa, descompacta e verifica; só então
+   move o banco atual (com `-wal`/`-shm`) para `pre-restore-AAAA-MM-DD_HHMM/` e põe a cópia no
+   lugar. Nome com `/` ou sem `.sqlite3.gz` é recusado. Qualquer falha deixa o banco intacto.
+6. **CLI:** `python backup.py` (serviço), `--now` (uma vez; saída 0 só com `ok`),
+   `--restore <nome>`.

@@ -219,6 +219,7 @@ modelos em versões futuras.
 | RNF-05 | Sem segredos no repositório; configuração por variáveis de ambiente. |
 | RNF-07 | No ambiente de teste na internet (`https://planlabel-test.bundoran.tech`), acesso só com **login Google** de e-mails autorizados (oauth2-proxy na frente do app). |
 | RNF-06 | Respeitar as fontes públicas: timeout, retry com backoff, no máximo poucas requisições por registro exibido. |
+| RNF-08 | O dataset do ambiente de teste tem **backup diário fora do servidor** (Google Drive da conta dos backups do LO Engagement), verificado antes do envio, com retenção de 60 dias e restauração documentada. |
 
 ## 8. Fora de escopo (MVP)
 

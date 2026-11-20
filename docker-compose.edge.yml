@@ -1,11 +1,12 @@
 # Plan Labeler — teste na VPS 3 (https://planlabel-test.bundoran.tech).
-# Segue a convenção do vps-infra: sem Caddy próprio e sem portas publicadas; os dois
-# containers entram na rede externa "edge" e o Caddy compartilhado (/opt/edge) os encontra
+# Segue a convenção do vps-infra: sem Caddy próprio e sem portas publicadas; app e
+# oauth2-proxy entram na rede externa "edge" e o Caddy compartilhado (/opt/edge) os encontra
 # pelos apelidos. Segredos só no servidor, fora do git:
 #   /opt/planlabel/app.env     chaves dos modelos e PLANLABEL_* (modelo: .env.example)
 #   /opt/planlabel/oauth2.env  OAUTH2_PROXY_CLIENT_ID / _CLIENT_SECRET / _COOKIE_SECRET
 #   /opt/planlabel/emails.txt  e-mails autorizados, um por linha
-# Passo a passo: docs/runbooks/deploy-vps3.md
+#   /opt/planlabel/rclone/     rclone.conf do backup (remote "gdrive"), dono UID 10001
+# Passo a passo: docs/runbooks/deploy-vps3.md e docs/runbooks/backup-sqlite.md
 name: planlabel-test
 
 services:
@@ -40,6 +41,25 @@ services:
     networks:
       edge:
         aliases: [planlabel-oauth2]
+
+  planlabel-backup:
+    # Backup diário do SQLite para o Google Drive (SPEC §9, runbook backup-sqlite).
+    # Mesma conta do LO Engagement; rclone.conf próprio em /opt/planlabel/rclone.
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    image: planlabel-backup:develop
+    restart: unless-stopped
+    environment:
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-gdrive:planlabel-test-backups}
+      BACKUP_RETENTION: ${BACKUP_RETENTION:-60d}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      TZ: ${BACKUP_TZ:-Europe/Dublin}
+    volumes:
+      - planlabel_data:/app/data
+      # Leitura e escrita: o rclone renova o token do Drive dentro do rclone.conf.
+      - /opt/planlabel/rclone:/config
+    network_mode: bridge
 
 networks:
   edge:

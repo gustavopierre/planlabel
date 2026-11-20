@@ -236,8 +236,11 @@ Segue as convenções do projeto `vps_infra` (memória no Drive, `Claude_Memoria
   oauth2-proxy não receber as chaves dos modelos; `emails.txt` (lista de e-mails) também lá.
   Código em `/home/deploy/planlabel` (clone do `develop`). Passo a passo:
   [runbook deploy-vps3](runbooks/deploy-vps3.md).
-- **Dados:** SQLite no volume `planlabel_data`. Backup diário fora do servidor
-  (`sqlite3 labels.sqlite3 ".backup ..."` → cópia para o Drive/PC) — **[DECIDIR]** destino e rotina.
+- **Dados:** SQLite no volume `planlabel_data`. Backup diário às 02:00 (Dublin) pelo container
+  `planlabel-backup`: cópia com a API de backup do SQLite, verificação, gzip e `rclone` para
+  `gdrive:planlabel-test-backups` (mesma conta Google dos backups do LO Engagement — decisão do
+  dono, 2026-11-20), retenção de 60 dias. Detalhes em SPEC §9 e no
+  [runbook backup-sqlite](runbooks/backup-sqlite.md).
 - **Divisão de trabalho:** o deploy do app é deste projeto; a alteração no `Caddyfile` e nas
   fichas da VPS 3 é registrada também no projeto `vps_infra` (e copiada para o Hermes).
 - **Vantagem:** a VPS não tem o bloqueio de rede do container de desenvolvimento; a T00
